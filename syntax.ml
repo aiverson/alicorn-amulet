@@ -1,7 +1,7 @@
 
 open import "prelude.ml"
-open import "./parsing/lpeg_untyped.ml"
-open import "./parsing/utils_untyped.ml"
+open import "./parsing/lpeg.ml"
+open import "./parsing/utils.ml"
 open import "./ast.ml"
 open import "./result.ml"
 open import "./hylo.ml"
@@ -40,7 +40,9 @@ let showterm: pterm -> string = cata (function
   | Hole id -> "$?"^id)
 
 let escapechars = lit "\\n" "\n" `alt` lit "\\t" "\t"
+(*
 let stringfrag = cs (((neg @@ s "\"$\\") `seq` star `alt` escapechars `rep` 0))
+*)
 
 let keyword str = p str `seq` wsp
 let literal: parser1 pterm = v "literal"
@@ -50,11 +52,13 @@ let term: parser1 pterm = v "term"
 let parser =
   grammar {
     literal: parser1 pterm = lit "true" true `alt` lit "false" false `act` LiteralBool `act` Fix `seq` wsp
+  (*
   , stringcons: parser1 pterm = p"\""
     `seq` stringfrag
     `seq` collect_list( collect_tuple (
       p"$" `seq` (identifier `alt` (p"(" `seq` term `seq` p")"))
       `seq` stringfrag) `rep` 0)
+  *)
   } literal
 
 let foo = 0
