@@ -40,25 +40,46 @@ let showterm = cata (function
   | Hole id -> "$?"^id)
 
 let escapechars = lit "\\n" "\n" `alt` lit "\\t" "\t"
+(* TODO: fix this *)
 (*
 let stringfrag = cs (((neg @@ s "\"$\\") `seq` star `alt` escapechars `rep` 0))
 *)
 
+let num = r "09"
+let alpha_upper = r "AZ"
+let alpha_lower = r "az"
+let alpha = alpha_upper `alt` alpha_lower
+let alnum = alpha `alt` num
+let alnum_ext = alnum `alt` p "_"
+
 let keyword str = p str `seq` wsp
-let literal: parser1 pterm = v "literal"
-let identifier = c (r "az" `rep` 1) `act` Identifier `act` Fix
+let keysym str = p str `seq` wsq
+(* TODO: that wsp is sus, what about a tailgating operator? *)
+let literal_bool: parser1 pterm = lit "true" true `alt` lit "false" false `act` LiteralBool `act` Fix `seq` wsp
+(* TODO: is wsq correct? *)
+let identifier = c (alpha_lower `seq` (alnum_ext `rep` 0)) `act` Identifier `act` Fix `seq` wsq
+(* TODO: metaprogram this away *)
+let string_cons: parser1 pterm = v "string_cons"
+let list_cons: parser1 pterm = v "list_cons"
+let record_cons: parser1 pterm = v "record_cons"
 let term: parser1 pterm = v "term"
 
 let parser =
   grammar {
-    literal = lit "true" true `alt` lit "false" false `act` LiteralBool `act` Fix `seq` wsp
   (*
-  , stringcons = p"\""
+    string_cons = p"\""
     `seq` stringfrag
     `seq` collect_list( collect_tuple (
       p"$" `seq` (identifier `alt` (p"(" `seq` term `seq` p")"))
       `seq` stringfrag) `rep` 0)
   *)
-  } literal
+  (* don't forget the comma here *)
+    list_cons = keysym "[" `seq` collect_list (sepseq term (keysym ",")) `seq` keysym "]" `act` ListCons `act` Fix
+  , record_cons =
+      let record_key = identifier `alt` (* string_cons `alt` *) (keysym "(" `seq` term `seq` keysym ")")
+      let record_pair = collect_tuple (record_key `seq` keysym "=" `seq` term)
+      in keysym "{" `seq` collect_list (sepseq record_pair (keysym ",")) `seq` keysym "}" `act` RecordCons `act` Fix
+  , term = literal_bool `alt` (* string_cons `alt` *) list_cons `alt` record_cons
+  } term
 
 let foo = 0
