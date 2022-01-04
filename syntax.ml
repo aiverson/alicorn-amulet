@@ -54,14 +54,16 @@ let alnum_ext = alnum `alt` p "_"
 
 let keyword str = p str `seq` wsp
 let keysym str = p str `seq` wsq
+let basic_id = c (alpha_lower `seq` (alnum_ext `rep` 0))
 (* TODO: that wsp is sus, what about a tailgating operator? *)
 let literal_bool: parser1 pterm = lit "true" true `alt` lit "false" false `act` LiteralBool `act` Fix `seq` wsp
 (* TODO: is wsq correct? *)
-let identifier = c (alpha_lower `seq` (alnum_ext `rep` 0)) `act` Identifier `act` Fix `seq` wsq
+let identifier = basic_id `act` Identifier `act` Fix `seq` wsq
 (* TODO: metaprogram this away *)
 let string_cons: parser1 pterm = v "string_cons"
 let list_cons: parser1 pterm = v "list_cons"
 let record_cons: parser1 pterm = v "record_cons"
+let let_binding: parser1 pterm = v "let_binding"
 let term: parser1 pterm = v "term"
 
 let parser =
@@ -79,7 +81,10 @@ let parser =
       let record_key = identifier `alt` (* string_cons `alt` *) (keysym "(" `seq` term `seq` keysym ")")
       let record_pair = collect_tuple (record_key `seq` keysym "=" `seq` term)
       in keysym "{" `seq` collect_list (sepseq record_pair (keysym ",")) `seq` keysym "}" `act` RecordCons `act` Fix
-  , term = literal_bool `alt` (* string_cons `alt` *) list_cons `alt` record_cons `alt` identifier
+  (* TODO: is keysym "in" correct? *)
+  (* TODO: function bindings (probably need to adjust the term type) *)
+  , let_binding = keyword "let" `seq` collect_tuple (basic_id `seq` keysym "=" `seq` term `seq` keysym "in" `seq` term) `act` LetBinding `act` Fix
+  , term = literal_bool `alt` (* string_cons `alt` *) list_cons `alt` record_cons `alt` identifier `alt` let_binding
   } term
 
 let foo = 0
