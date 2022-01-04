@@ -79,7 +79,7 @@ let parser =
       let record_key = identifier `alt` (* string_cons `alt` *) (keysym "(" `seq` term `seq` keysym ")")
       let record_pair = collect_tuple (record_key `seq` keysym "=" `seq` term)
       in keysym "{" `seq` collect_list (sepseq record_pair (keysym ",")) `seq` keysym "}" `act` RecordCons `act` Fix
-  , term = literal_bool `alt` (* string_cons `alt` *) list_cons `alt` record_cons
+  , term = literal_bool `alt` (* string_cons `alt` *) list_cons `alt` record_cons `alt` identifier
   } term
 
 let foo = 0
