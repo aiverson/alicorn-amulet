@@ -20,7 +20,7 @@ let rec intercalate s ss = match ss with
 
 let matchingbracket = Map.from_list [("(|", "|)"), ("[|", "|]"), ("{|", "|}")]
 
-let showterm: pterm -> string = cata (function
+let showterm = cata (function
   | LiteralBool b -> show b
   | StringCons (s, ts) -> "\"" ^ s ^ (map (fun (t, s) -> "$("^t^")"^s) ts |> foldl (^) "") ^ "\""
   | ListCons ts -> intercalate ", " ts
@@ -46,14 +46,14 @@ let stringfrag = cs (((neg @@ s "\"$\\") `seq` star `alt` escapechars `rep` 0))
 
 let keyword str = p str `seq` wsp
 let literal: parser1 pterm = v "literal"
-let identifier: parser1 pterm = c (r "az" `rep` 1) `act` Identifier `act` Fix
+let identifier = c (r "az" `rep` 1) `act` Identifier `act` Fix
 let term: parser1 pterm = v "term"
 
 let parser =
   grammar {
-    literal: parser1 pterm = lit "true" true `alt` lit "false" false `act` LiteralBool `act` Fix `seq` wsp
+    literal = lit "true" true `alt` lit "false" false `act` LiteralBool `act` Fix `seq` wsp
   (*
-  , stringcons: parser1 pterm = p"\""
+  , stringcons = p"\""
     `seq` stringfrag
     `seq` collect_list( collect_tuple (
       p"$" `seq` (identifier `alt` (p"(" `seq` term `seq` p")"))
