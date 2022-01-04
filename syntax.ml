@@ -142,7 +142,7 @@ let parser_tests = [
 
 let parser_test parser (test, expected) =
   let got = parse (parser `seq` eof) test
-  (expected == got, test, expected, got)
+  (expected == got, test, showterm <$> expected, showterm <$> got)
 let filter_failing results = filter (fun (success, _) -> not success) results
 let run_tests (parser, tests) =
   let results = parser_test parser <$> tests
