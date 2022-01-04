@@ -272,7 +272,7 @@ external private val lpeg:
             g2[k] = v \
           end \
           g2[1] = start \
-          return lpeg.p(g2) \
+          return lpeg.P(g2) \
         end \
       end, \
       rep = function(p) return function(r) return p ^ r end end, \
