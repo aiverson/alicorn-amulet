@@ -39,6 +39,26 @@ let showterm = cata (function
   | Conditional (cond, cons, alt) -> "if " ^ cond ^ " then " ^ cons ^ " else " ^ alt
   | Hole id -> "$?"^id)
 
+(* Fixed constructors *)
+(* TODO: metaprogram this away *)
+let literal_bool_fix x = Fix (LiteralBool x)
+let string_cons_fix x = Fix (StringCons x)
+let list_cons_fix x = Fix (ListCons x)
+let record_cons_fix x = Fix (RecordCons x)
+let identifier_fix x = Fix (Identifier x)
+let application_fix x = Fix (Application x)
+let partial_application_fix x = Fix (PartialApplication x)
+let infix_op_fix x = Fix (InfixOp x)
+let partial_infix_op_fix x = Fix (PartialInfixOp x)
+let prefix_op_fix x = Fix (PrefixOp x)
+let partial_prefix_op_fix x = Fix (PartialPrefixOp x)
+let suffix_op_fix x = Fix (SuffixOp x)
+let partial_suffix_op_fix x = Fix (PartialSuffixOp x)
+let abstraction_fix x = Fix (Abstraction x)
+let let_binding_fix x = Fix (LetBinding x)
+let conditional_fix x = Fix (Conditional x)
+let hole_fix x = Fix (Hole x)
+
 let escapechars = lit "\\n" "\n" `alt` lit "\\t" "\t"
 (* TODO: fix this *)
 (*
@@ -100,30 +120,30 @@ let parser =
 let parser_tests = [
   (* Basic identifiers *)
 
-  ("list", Some (Identifier "list")),
-  ("sum", Some (Identifier "sum")),
-  ("foldl", Some (Identifier "foldl")),
-  ("this_is_a_s1lly_but_v4l1d_identifier", Some (Identifier "this_is_a_s1lly_but_v4l1d_identifier")),
+  ("list", Some (identifier_fix "list")),
+  ("sum", Some (identifier_fix "sum")),
+  ("foldl", Some (identifier_fix "foldl")),
+  ("this_is_a_s1lly_but_v4l1d_identifier", Some (identifier_fix "this_is_a_s1lly_but_v4l1d_identifier")),
 
   ("_", None),
   ("++", None),
   ("_internal", None),
 
-  ("x___", Some (Identifier "x___")),
-  ("iCons", Some (Identifier "iCons")),
-  ("e", Some (Identifier "e")),
+  ("x___", Some (identifier_fix "x___")),
+  ("iCons", Some (identifier_fix "iCons")),
+  ("e", Some (identifier_fix "e")),
 
   (* TODO: other tests (depends on the parsers) *)
 
   (* Lists *)
 
-  ("[a,b,c]", Some (ListCons [Identifier "a", Identifier "b", Identifier "c"])),
-  ("[ a, b, c ]", Some (ListCons [Identifier "a", Identifier "b", Identifier "c"])),
+  ("[a,b,c]", Some (list_cons_fix [identifier_fix "a", identifier_fix "b", identifier_fix "c"])),
+  ("[ a, b, c ]", Some (list_cons_fix [identifier_fix "a", identifier_fix "b", identifier_fix "c"])),
 
   (* Records *)
 
-  ("{a=b,c=d,e=f}", Some (RecordCons [(Identifier "a", Identifier "b"), (Identifier "c", Identifier "d"), (Identifier "e", Identifier "f")])),
-  ("{ a=b, c = d, e= f }", Some (RecordCons [(Identifier "a", Identifier "b"), (Identifier "c", Identifier "d"), (Identifier "e", Identifier "f")])),
+  ("{a=b,c=d,e=f}", Some (record_cons_fix [(identifier_fix "a", identifier_fix "b"), (identifier_fix "c", identifier_fix "d"), (identifier_fix "e", identifier_fix "f")])),
+  ("{ a=b, c = d, e= f }", Some (record_cons_fix [(identifier_fix "a", identifier_fix "b"), (identifier_fix "c", identifier_fix "d"), (identifier_fix "e", identifier_fix "f")])),
 
   (* Anonymous functions *)
 
@@ -134,7 +154,7 @@ let parser_tests = [
   (*("foo(a, b, c)", Some (ExprFunctionCall ("foo", [ExprId "a", ExprId "b", ExprId "c"]))),*)
 
   (* Let expressions *)
-  ("let name = expr in body", Some (LetBinding ("name", Identifier "expr", Identifier "body")))
+  ("let name = expr in body", Some (let_binding_fix ("name", identifier_fix "expr", identifier_fix "body")))
   (* don't forget the comma at the end of the previous line *)
   (*("let rec name = expr in body", Some (ExprLet (LetRec, LetSimple ("name", ExprId "expr"), ExprId "body"))),*)
   (*("let foo(a, b, c) = foocode in body", Some (ExprLet (Let, LetFunction ("foo", ["a", "b", "c"], ExprId "foocode"), ExprId "body")))*)
@@ -142,11 +162,13 @@ let parser_tests = [
 
 let parser_test parser (test, expected) =
   let got = parse (parser `seq` eof) test
-  (expected == got, test, showterm <$> expected, showterm <$> got)
+  (* TODO: figure out how to impl eq for term, to fix this hack *)
+  let sexp = showterm <$> expected
+  let sgot = showterm <$> got
+  (sexp == sgot, test, sexp, sgot)
 let filter_failing results = filter (fun (success, _) -> not success) results
 let run_tests (parser, tests) =
   let results = parser_test parser <$> tests
   let fails = filter_failing results
   map print fails
-(* TODO: impl show for term *)
-(*let _ = run_tests (parser, parser_tests)*)
+let _ = run_tests (parser, parser_tests)
