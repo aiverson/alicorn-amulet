@@ -63,13 +63,13 @@ let parser_test parser (test, expected) =
   (* ideally impl show as well, showterm doesn't quite show the ast *)
   let sexp = showterm <$> expected
   let sgot = showterm <$> got
-  (sexp == sgot, test, sexp, sgot)
+  in (sexp == sgot, test, sexp, sgot)
 
 let filter_failing results = filter (fun (success, _) -> not success) results
 
 let run_tests (parser, tests) =
   let results = parser_test parser <$> tests
   let fails = filter_failing results
-  map print fails
+  in map print fails
 
 let _ = run_tests (parser, parser_tests)
