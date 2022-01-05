@@ -1,5 +1,5 @@
-syntax.lua: syntax.ml
-	amc compile syntax.ml -o syntax.lua
+syntax-tests.lua: syntax-tests.ml syntax.ml # add other deps?
+	amc compile syntax-tests.ml -o syntax-tests.lua
 
 clean:
 	rm *.lua
