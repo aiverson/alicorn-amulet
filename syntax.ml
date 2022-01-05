@@ -70,8 +70,7 @@ let eof = neg star
 let keyword str = p str `seq` wsp
 let keysym str = p str `seq` wsq
 let commasep pat = collect_list (sepseq pat (keysym ","))
-let basic_id = c (alpha_lower `seq` (alnum_ext `rep` 0))
-let basic_id_w = basic_id `seq` wsq
+let basic_id = c (alpha_lower `seq` (alnum_ext `rep` 0)) `seq` wsq
 
 let escapechars = lit "\\n" "\n" `alt` lit "\\t" "\t"
 (* TODO: fix this *)
@@ -82,17 +81,17 @@ let stringfrag = cs (((neg @@ s "\"$\\") `seq` star `alt` escapechars `rep` 0))
 (* TODO: that wsp is sus, what about a tailgating operator? *)
 let literal_bool: parser1 pterm = lit "true" true `alt` lit "false" false `act` literal_bool_fix `seq` wsp
 (* TODO: is wsq correct? *)
-let identifier = basic_id_w `act` identifier_fix
+let identifier = basic_id `act` identifier_fix
 (* TODO: metaprogram this away *)
 let string_cons: parser1 pterm = v "string_cons"
 let list_cons: parser1 pterm = v "list_cons"
 let record_cons: parser1 pterm = v "record_cons"
 let application: parser1 pterm = v "application"
+let abstraction: parser1 pterm = v "abstraction"
 let let_binding: parser1 pterm = v "let_binding"
 let term: parser1 pterm = v "term"
 
 (* mega-TODO:
- *   anonymous functions
  *   let rec bindings
  *   let function bindings
  *   everything else
@@ -106,19 +105,22 @@ let parser =
       p"$" `seq` (identifier `alt` (p"(" `seq` term `seq` p")"))
       `seq` stringfrag) `rep` 0)
   *)
-  (* don't forget the comma here *)
+    (* don't forget the comma here *)
     list_cons = keysym "[" `seq` commasep term `seq` keysym "]" `act` list_cons_fix
   , record_cons =
       let record_key = identifier `alt` (* string_cons `alt` *) (keysym "(" `seq` term `seq` keysym ")")
       let record_pair = collect_tuple (record_key `seq` keysym "=" `seq` term)
       in keysym "{" `seq` commasep record_pair `seq` keysym "}" `act` record_cons_fix
-  (* TODO: arbitrary terms on the left? too spicy for lpeg *)
+    (* TODO: arbitrary terms on the left? too spicy for lpeg *)
   , application = collect_tuple (identifier `seq` keysym "(" `seq` commasep term `seq` keysym ")") `act` application_fix
-  (* TODO: is keysym "in" correct? (probably not) *)
-  , let_binding = keyword "let" `seq` collect_tuple (basic_id_w `seq` keysym "=" `seq` term `seq` keysym "in" `seq` term) `act` let_binding_fix
+    (* TODO: is keysym "fun" correct? *)
+  , abstraction = keysym "fun" `seq` collect_tuple (keysym "(" `seq` commasep basic_id `seq` keysym ")" `seq` keysym "=" `seq` term) `act` abstraction_fix
+    (* TODO: is keysym "in" correct? (probably not) *)
+  , let_binding = keyword "let" `seq` collect_tuple (basic_id `seq` keysym "=" `seq` term `seq` keysym "in" `seq` term) `act` let_binding_fix
+
   , term =
       (* first, parsers that start with keywords/keysyms *)
-      literal_bool `alt` (* string_cons `alt` *) list_cons `alt` record_cons `alt` let_binding
+      literal_bool `alt` (* string_cons `alt` *) list_cons `alt` record_cons `alt` abstraction `alt` let_binding
       (* lastly, function application before basic identifiers *)
       `alt` application `alt` identifier
   } term
@@ -157,17 +159,18 @@ let parser_tests = [
   ("{a=b,c=d,e=f}", Some (record_cons_fix [(identifier_fix "a", identifier_fix "b"), (identifier_fix "c", identifier_fix "d"), (identifier_fix "e", identifier_fix "f")])),
   ("{ a=b, c = d, e= f }", Some (record_cons_fix [(identifier_fix "a", identifier_fix "b"), (identifier_fix "c", identifier_fix "d"), (identifier_fix "e", identifier_fix "f")])),
 
-  (* Anonymous functions *)
-
-  (*("fun(a, b, c) = body", Some (ExprFunctionAnon (["a", "b", "c"], ExprId "body"))),*)
-
   (* Function application *)
 
   ("foo()", Some (application_fix (identifier_fix "foo", []))),
   ("foo(a, b, c)", Some (application_fix (identifier_fix "foo", [identifier_fix "a", identifier_fix "b", identifier_fix "c"]))),
   ("foo (a,b,c)", Some (application_fix (identifier_fix "foo", [identifier_fix "a", identifier_fix "b", identifier_fix "c"]))),
 
+  (* Anonymous functions / Lambdas / Abstractions *)
+
+  ("fun(a, b, c) = body", Some (abstraction_fix (["a", "b", "c"], identifier_fix "body"))),
+
   (* Let expressions *)
+
   ("let name=expr in body", Some (let_binding_fix ("name", identifier_fix "expr", identifier_fix "body"))),
   ("let name = expr in body", Some (let_binding_fix ("name", identifier_fix "expr", identifier_fix "body")))
   (* don't forget the comma at the end of the previous line *)
