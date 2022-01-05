@@ -118,7 +118,11 @@ let parser =
   (* TODO: is keysym "in" correct? (probably not) *)
   (* TODO: why is it broken? *)
   , let_binding = keyword "let" `seq` collect_tuple (basic_id_w `seq` keysym "=" `seq` term `seq` keysym "in" `seq` term) `act` let_binding_fix
-  , term = literal_bool `alt` (* string_cons `alt` *) list_cons `alt` record_cons `alt` identifier `alt` application `alt` let_binding
+  , term =
+      (* first, parsers that start with keywords/keysyms *)
+      literal_bool `alt` (* string_cons `alt` *) list_cons `alt` record_cons `alt` let_binding
+      (* lastly, function application before basic identifiers *)
+      `alt` application `alt` identifier
   } term
 
 (* TESTS *)
