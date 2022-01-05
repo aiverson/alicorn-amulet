@@ -76,6 +76,7 @@ let eof = neg star
 let keyword str = p str `seq` wsp
 let keysym str = p str `seq` wsq
 let basic_id = c (alpha_lower `seq` (alnum_ext `rep` 0))
+let basic_id_w = basic_id `seq` wsq
 (* TODO: that wsp is sus, what about a tailgating operator? *)
 let literal_bool: parser1 pterm = lit "true" true `alt` lit "false" false `act` literal_bool_fix `seq` wsp
 (* TODO: is wsq correct? *)
@@ -105,7 +106,9 @@ let parser =
   (* TODO: is keysym "in" correct? *)
   (* TODO: rec bindings *)
   (* TODO: function bindings *)
-  , let_binding = keyword "let" `seq` collect_tuple (basic_id `seq` keysym "=" `seq` term `seq` keysym "in" `seq` term) `act` let_binding_fix
+  (* TODO: figure out spacing after "in" *)
+  (* TODO: why doesn't it work? *)
+  , let_binding = keyword "let" `seq` collect_tuple (basic_id_w `seq` keysym "=" `seq` term `seq` keysym "in" `seq` term) `act` let_binding_fix
   , term = literal_bool `alt` (* string_cons `alt` *) list_cons `alt` record_cons `alt` identifier `alt` let_binding
   } term
 
@@ -154,6 +157,7 @@ let parser_tests = [
   (*("foo(a, b, c)", Some (ExprFunctionCall ("foo", [ExprId "a", ExprId "b", ExprId "c"]))),*)
 
   (* Let expressions *)
+  ("let name=expr in body", Some (let_binding_fix ("name", identifier_fix "expr", identifier_fix "body"))),
   ("let name = expr in body", Some (let_binding_fix ("name", identifier_fix "expr", identifier_fix "body")))
   (* don't forget the comma at the end of the previous line *)
   (*("let rec name = expr in body", Some (ExprLet (LetRec, LetSimple ("name", ExprId "expr"), ExprId "body"))),*)
