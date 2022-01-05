@@ -113,10 +113,8 @@ let parser =
       let record_pair = collect_tuple (record_key `seq` keysym "=" `seq` term)
       in keysym "{" `seq` commasep record_pair `seq` keysym "}" `act` record_cons_fix
   (* TODO: arbitrary terms on the left? too spicy for lpeg *)
-  (* TODO: why is it broken? *)
   , application = collect_tuple (identifier `seq` keysym "(" `seq` commasep term `seq` keysym ")") `act` application_fix
   (* TODO: is keysym "in" correct? (probably not) *)
-  (* TODO: why is it broken? *)
   , let_binding = keyword "let" `seq` collect_tuple (basic_id_w `seq` keysym "=" `seq` term `seq` keysym "in" `seq` term) `act` let_binding_fix
   , term =
       (* first, parsers that start with keywords/keysyms *)
