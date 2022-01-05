@@ -59,12 +59,6 @@ let let_binding_fix x = Fix (LetBinding x)
 let conditional_fix x = Fix (Conditional x)
 let hole_fix x = Fix (Hole x)
 
-let escapechars = lit "\\n" "\n" `alt` lit "\\t" "\t"
-(* TODO: fix this *)
-(*
-let stringfrag = cs (((neg @@ s "\"$\\") `seq` star `alt` escapechars `rep` 0))
-*)
-
 let num = r "09"
 let alpha_upper = r "AZ"
 let alpha_lower = r "az"
@@ -75,8 +69,16 @@ let eof = neg star
 
 let keyword str = p str `seq` wsp
 let keysym str = p str `seq` wsq
+let commasep pat = collect_list (sepseq pat (keysym ","))
 let basic_id = c (alpha_lower `seq` (alnum_ext `rep` 0))
 let basic_id_w = basic_id `seq` wsq
+
+let escapechars = lit "\\n" "\n" `alt` lit "\\t" "\t"
+(* TODO: fix this *)
+(*
+let stringfrag = cs (((neg @@ s "\"$\\") `seq` star `alt` escapechars `rep` 0))
+*)
+
 (* TODO: that wsp is sus, what about a tailgating operator? *)
 let literal_bool: parser1 pterm = lit "true" true `alt` lit "false" false `act` literal_bool_fix `seq` wsp
 (* TODO: is wsq correct? *)
@@ -85,9 +87,16 @@ let identifier = basic_id `act` identifier_fix `seq` wsq
 let string_cons: parser1 pterm = v "string_cons"
 let list_cons: parser1 pterm = v "list_cons"
 let record_cons: parser1 pterm = v "record_cons"
+let application: parser1 pterm = v "application"
 let let_binding: parser1 pterm = v "let_binding"
 let term: parser1 pterm = v "term"
 
+(* mega-TODO:
+ *   anonymous functions
+ *   let rec bindings
+ *   let function bindings
+ *   everything else
+ *)
 let parser =
   grammar {
   (*
@@ -98,18 +107,18 @@ let parser =
       `seq` stringfrag) `rep` 0)
   *)
   (* don't forget the comma here *)
-    list_cons = keysym "[" `seq` collect_list (sepseq term (keysym ",")) `seq` keysym "]" `act` list_cons_fix
+    list_cons = keysym "[" `seq` commasep term `seq` keysym "]" `act` list_cons_fix
   , record_cons =
       let record_key = identifier `alt` (* string_cons `alt` *) (keysym "(" `seq` term `seq` keysym ")")
       let record_pair = collect_tuple (record_key `seq` keysym "=" `seq` term)
-      in keysym "{" `seq` collect_list (sepseq record_pair (keysym ",")) `seq` keysym "}" `act` record_cons_fix
-  (* TODO: is keysym "in" correct? *)
-  (* TODO: rec bindings *)
-  (* TODO: function bindings *)
-  (* TODO: figure out spacing after "in" *)
-  (* TODO: why doesn't it work? *)
+      in keysym "{" `seq` commasep record_pair `seq` keysym "}" `act` record_cons_fix
+  (* TODO: arbitrary terms on the left? too spicy for lpeg *)
+  (* TODO: why is it broken? *)
+  , application = collect_tuple (identifier `seq` keysym "(" `seq` commasep term `seq` keysym ")") `act` application_fix
+  (* TODO: is keysym "in" correct? (probably not) *)
+  (* TODO: why is it broken? *)
   , let_binding = keyword "let" `seq` collect_tuple (basic_id_w `seq` keysym "=" `seq` term `seq` keysym "in" `seq` term) `act` let_binding_fix
-  , term = literal_bool `alt` (* string_cons `alt` *) list_cons `alt` record_cons `alt` identifier `alt` let_binding
+  , term = literal_bool `alt` (* string_cons `alt` *) list_cons `alt` record_cons `alt` identifier `alt` let_binding `alt` application
   } term
 
 (* TESTS *)
@@ -136,8 +145,6 @@ let parser_tests = [
   ("iCons", Some (identifier_fix "iCons")),
   ("e", Some (identifier_fix "e")),
 
-  (* TODO: other tests (depends on the parsers) *)
-
   (* Lists *)
 
   ("[a,b,c]", Some (list_cons_fix [identifier_fix "a", identifier_fix "b", identifier_fix "c"])),
@@ -154,7 +161,8 @@ let parser_tests = [
 
   (* Function application *)
 
-  (*("foo(a, b, c)", Some (ExprFunctionCall ("foo", [ExprId "a", ExprId "b", ExprId "c"]))),*)
+  ("foo(a, b, c)", Some (application_fix (identifier_fix "foo", [identifier_fix "a", identifier_fix "b", identifier_fix "c"]))),
+  ("foo (a,b,c)", Some (application_fix (identifier_fix "foo", [identifier_fix "a", identifier_fix "b", identifier_fix "c"]))),
 
   (* Let expressions *)
   ("let name=expr in body", Some (let_binding_fix ("name", identifier_fix "expr", identifier_fix "body"))),
@@ -162,11 +170,14 @@ let parser_tests = [
   (* don't forget the comma at the end of the previous line *)
   (*("let rec name = expr in body", Some (ExprLet (LetRec, LetSimple ("name", ExprId "expr"), ExprId "body"))),*)
   (*("let foo(a, b, c) = foocode in body", Some (ExprLet (Let, LetFunction ("foo", ["a", "b", "c"], ExprId "foocode"), ExprId "body")))*)
+
+  (* TODO: other tests (depends on the parsers) *)
 ]
 
 let parser_test parser (test, expected) =
   let got = parse (parser `seq` eof) test
   (* TODO: figure out how to impl eq for term, to fix this hack *)
+  (* ideally impl show as well, showterm doesn't quite show the ast *)
   let sexp = showterm <$> expected
   let sgot = showterm <$> got
   (sexp == sgot, test, sexp, sgot)
