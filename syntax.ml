@@ -82,7 +82,7 @@ let stringfrag = cs (((neg @@ s "\"$\\") `seq` star `alt` escapechars `rep` 0))
 (* TODO: that wsp is sus, what about a tailgating operator? *)
 let literal_bool: parser1 pterm = lit "true" true `alt` lit "false" false `act` literal_bool_fix `seq` wsp
 (* TODO: is wsq correct? *)
-let identifier = basic_id `act` identifier_fix `seq` wsq
+let identifier = basic_id_w `act` identifier_fix
 (* TODO: metaprogram this away *)
 let string_cons: parser1 pterm = v "string_cons"
 let list_cons: parser1 pterm = v "list_cons"
