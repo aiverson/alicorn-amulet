@@ -72,7 +72,8 @@ let keysym str = p str `seq` wsq
 let excl pat unless = neg unless `seq` pat
 let collect_sep pat sep = collect_list (sepseq pat sep)
 let comma_sep pat = collect_sep pat (keysym ",")
-let basic_id = c (alpha_lower `seq` (alnum_ext `rep` 0)) `seq` wsq
+let basic_id_shy = c (alpha_lower `seq` (alnum_ext `rep` 0))
+let basic_id = basic_id_shy `seq` wsq
 
 (* TODO: that wsp is sus, what about a tailgating operator? *)
 (* idea: capture a basic_id and try to match exactly "true" or "false" *)
@@ -96,18 +97,19 @@ let term: parser1 pterm = v "term"
 let parser () =
   grammar {
     string_cons =
-      let escape_chars = lit "\\n" "\n" `alt` lit "\\t" "\t"
+      let escape_chars = lit "\\t" "\t" `alt` lit "\\n" "\n" `alt` lit "\\\"" "\"" `alt` lit "\\\\" "\\"
       (* This looks really weird because escape_chars provides a capture,
        * and nested captures are buggy, so some fiddling is needed *)
       (* TODO: newlines (as in actual 0A byte in the input) allowed in strings? *)
       let string_frag = collect_list (c (star `excl` s "\"$\\") `alt` escape_chars `rep` 0) `act` foldl (^) ""
       let splice_frag = p "$" `seq` (
-              identifier
+              (basic_id_shy `act` identifier_fix)
         `alt` (keysym "(" `seq` term `seq` p ")")
         (* TODO: other splice styles *)
       )
       (* types are hard, and they don't let me use collect_sep here *)
-      in p"\"" `seq` collect_tuple (string_frag `seq` collect_list (collect_tuple (splice_frag `seq` string_frag) `rep` 0)) `seq` keysym "\"" `act` string_cons_fix
+      let splice_list = collect_list (collect_tuple (splice_frag `seq` string_frag) `rep` 0)
+      in p"\"" `seq` collect_tuple (string_frag `seq` splice_list) `seq` keysym "\"" `act` string_cons_fix
   , list_cons = keysym "[" `seq` comma_sep term `seq` keysym "]" `act` list_cons_fix
   , record_cons =
       let record_key =
