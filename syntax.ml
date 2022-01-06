@@ -93,7 +93,7 @@ let term: parser1 pterm = v "term"
  *   let function bindings
  *   everything else
  *)
-let parser =
+let parser () =
   grammar {
     string_cons =
       let escape_chars = lit "\\n" "\n" `alt` lit "\\t" "\t"
