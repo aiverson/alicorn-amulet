@@ -26,6 +26,11 @@ let parser_tests = [
   ("iCons", Some (identifier_fix "iCons")),
   ("e", Some (identifier_fix "e")),
 
+  (* Strings *)
+
+  ("\"The quick brown fox jumps over the lazy dog.\"", Some (string_cons_fix ("The quick brown fox jumps over the lazy dog.", []))),
+  ("\"The quick $color fox $(act)s over the lazy dog.\"", Some (string_cons_fix ("The quick ", [(identifier_fix "color", " fox "), (identifier_fix "act", "s over the lazy dog")]))),
+
   (* Lists *)
 
   ("[a,b,c]", Some (list_cons_fix [identifier_fix "a", identifier_fix "b", identifier_fix "c"])),
