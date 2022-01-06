@@ -107,7 +107,7 @@ let parser () =
         (* TODO: other splice styles *)
       )
       (* types are hard, and they don't let me use collect_sep here *)
-      in p"\"" `seq` collect_tuple (string_frag `seq` collect_list (collect_tuple (splice_frag `seq` string_frag) `rep` 0)) `seq` keysym "\""
+      in p"\"" `seq` collect_tuple (string_frag `seq` collect_list (collect_tuple (splice_frag `seq` string_frag) `rep` 0)) `seq` keysym "\"" `act` string_cons_fix
   , list_cons = keysym "[" `seq` comma_sep term `seq` keysym "]" `act` list_cons_fix
   , record_cons =
       let record_key =
