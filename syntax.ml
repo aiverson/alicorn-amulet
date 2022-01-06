@@ -69,16 +69,13 @@ let eof = neg star
 
 let keyword str = p str `seq` wsp
 let keysym str = p str `seq` wsq
-let commasep pat = collect_list (sepseq pat (keysym ","))
+let excl pat unless = neg unless `seq` pat
+let collect_sep pat sep = collect_list (sepseq pat sep)
+let comma_sep pat = collect_sep pat (keysym ",")
 let basic_id = c (alpha_lower `seq` (alnum_ext `rep` 0)) `seq` wsq
 
-let escapechars = lit "\\n" "\n" `alt` lit "\\t" "\t"
-(* TODO: fix this *)
-(*
-let stringfrag = cs (((neg @@ s "\"$\\") `seq` star `alt` escapechars `rep` 0))
-*)
-
 (* TODO: that wsp is sus, what about a tailgating operator? *)
+(* idea: capture a basic_id and try to match exactly "true" or "false" *)
 let literal_bool: parser1 pterm = lit "true" true `alt` lit "false" false `act` literal_bool_fix `seq` wsp
 (* TODO: is wsq correct? *)
 let identifier = basic_id `act` identifier_fix
@@ -98,29 +95,44 @@ let term: parser1 pterm = v "term"
  *)
 let parser =
   grammar {
-  (*
-    string_cons = p"\""
-    `seq` stringfrag
-    `seq` collect_list( collect_tuple (
-      p"$" `seq` (identifier `alt` (p"(" `seq` term `seq` p")"))
-      `seq` stringfrag) `rep` 0)
-  *)
-    (* don't forget the comma here *)
-    list_cons = keysym "[" `seq` commasep term `seq` keysym "]" `act` list_cons_fix
+    string_cons =
+      let escape_chars = lit "\\n" "\n" `alt` lit "\\t" "\t"
+      (* This looks really weird because escape_chars provides a capture,
+       * and nested captures are buggy, so some fiddling is needed *)
+      (* TODO: newlines (as in actual 0A byte in the input) allowed in strings? *)
+      let string_frag = collect_list (c (star `excl` s "\"$\\") `alt` escape_chars `rep` 0) `act` foldl (^) ""
+      let splice_frag = p "$" `seq` (
+              identifier
+        `alt` (keysym "(" `seq` term `seq` p ")")
+        (* TODO: other splice styles *)
+      )
+      (* types are hard, and they don't let me use collect_sep here *)
+      in p"\"" `seq` collect_tuple (string_frag `seq` collect_list (collect_tuple (splice_frag `seq` string_frag) `rep` 0)) `seq` keysym "\""
+  , list_cons = keysym "[" `seq` comma_sep term `seq` keysym "]" `act` list_cons_fix
   , record_cons =
-      let record_key = identifier `alt` (* string_cons `alt` *) (keysym "(" `seq` term `seq` keysym ")")
+      let record_key =
+        (* amulet doesn't like insetting here *)
+        identifier
+        `alt` string_cons
+        `alt` (keysym "(" `seq` term `seq` keysym ")")
       let record_pair = collect_tuple (record_key `seq` keysym "=" `seq` term)
-      in keysym "{" `seq` commasep record_pair `seq` keysym "}" `act` record_cons_fix
+      in keysym "{" `seq` comma_sep record_pair `seq` keysym "}" `act` record_cons_fix
     (* TODO: arbitrary terms on the left? too spicy for lpeg *)
-  , application = collect_tuple (identifier `seq` keysym "(" `seq` commasep term `seq` keysym ")") `act` application_fix
+  , application = collect_tuple (identifier `seq` keysym "(" `seq` comma_sep term `seq` keysym ")") `act` application_fix
     (* TODO: is keysym "fun" correct? *)
-  , abstraction = keysym "fun" `seq` collect_tuple (keysym "(" `seq` commasep basic_id `seq` keysym ")" `seq` keysym "=" `seq` term) `act` abstraction_fix
+  , abstraction = keysym "fun" `seq` collect_tuple (keysym "(" `seq` comma_sep basic_id `seq` keysym ")" `seq` keysym "=" `seq` term) `act` abstraction_fix
     (* TODO: is keysym "in" correct? (probably not) *)
   , let_binding = keyword "let" `seq` collect_tuple (basic_id `seq` keysym "=" `seq` term `seq` keysym "in" `seq` term) `act` let_binding_fix
 
   , term =
       (* first, parsers that start with keywords/keysyms *)
-      literal_bool `alt` (* string_cons `alt` *) list_cons `alt` record_cons `alt` abstraction `alt` let_binding
+            literal_bool
+      `alt` string_cons
+      `alt` list_cons
+      `alt` record_cons
+      `alt` abstraction
+      `alt` let_binding
       (* lastly, function application before basic identifiers *)
-      `alt` application `alt` identifier
+      `alt` application
+      `alt` identifier
   } term
