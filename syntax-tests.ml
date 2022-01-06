@@ -72,4 +72,4 @@ let run_tests (parser, tests) =
   let fails = filter_failing results
   in map print fails
 
-let _ = run_tests (parser (), parser_tests)
+let _ = run_tests (parser, parser_tests)

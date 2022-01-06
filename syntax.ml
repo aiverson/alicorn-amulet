@@ -136,3 +136,4 @@ let parser () =
       `alt` application
       `alt` identifier
   } term
+let parser = parser ()
