@@ -57,13 +57,16 @@ let parser_tests = [
   (* Anonymous functions / Lambdas / Abstractions *)
 
   ("fun(a, b, c) = body", Some (abstraction_fix (["a", "b", "c"], identifier_fix "body"))),
+  ("fun (a ,b, c )=body", Some (abstraction_fix (["a", "b", "c"], identifier_fix "body"))),
 
   (* Let expressions *)
 
   ("let name=expr in body", Some (let_binding_fix ("name", identifier_fix "expr", identifier_fix "body"))),
   ("let name = expr in body", Some (let_binding_fix ("name", identifier_fix "expr", identifier_fix "body"))),
   (*("let rec name = expr in body", Some (ExprLet (LetRec, LetSimple ("name", ExprId "expr"), ExprId "body"))),*)
-  (*("let foo(a, b, c) = foocode in body", Some (ExprLet (Let, LetFunction ("foo", ["a", "b", "c"], ExprId "foocode"), ExprId "body")))*)
+  (*("let foo(a, b, c) = foocode in body", Some (ExprLet (Let, LetFunction ("foo", ["a", "b", "c"], ExprId "foocode"), ExprId "body"))),*)
+  ("letname = expr in body", None),
+  ("let name = expr inbody", None),
 
   (* TODO: other tests (depends on the parsers) *)
 
