@@ -25,6 +25,12 @@ let parser_tests = [
   ("x___", Some (identifier_fix "x___")),
   ("iCons", Some (identifier_fix "iCons")),
   ("e", Some (identifier_fix "e")),
+  ("truething", Some (identifier_fix "truething")),
+
+  (* Booleans *)
+
+  ("true", Some (literal_bool_fix true)),
+  ("false", Some (literal_bool_fix false)),
 
   (* Strings *)
 
