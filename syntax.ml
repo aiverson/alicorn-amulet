@@ -67,6 +67,9 @@ let alnum = alpha `alt` num
 let alnum_ext = alnum `alt` p "_"
 let eof = neg star
 
+let basic_id_shy = c (alpha_lower `seq` (alnum_ext `rep` 0))
+let basic_id = basic_id_shy `seq` wsq
+
 (* TODO: ideally this would recognize a basic_id, check if the capture is equal to str, and cancel the capture *)
 (* the problem is idk how to cancel the capture *)
 let keyword str = p str `seq` neg alnum_ext `seq` wsq
@@ -74,9 +77,6 @@ let keysym str = p str `seq` wsq
 let excl pat unless = neg unless `seq` pat
 let collect_sep pat sep = collect_list (sepseq pat sep)
 let comma_sep pat = collect_sep pat (keysym ",")
-
-let basic_id_shy = c (alpha_lower `seq` (alnum_ext `rep` 0))
-let basic_id = basic_id_shy `seq` wsq
 
 let parse_bool = function | "true" -> Some true | "false" -> Some false | _ -> None
 let literal_bool: parser1 pterm = basic_id `actx` parse_bool `act` literal_bool_fix
@@ -86,6 +86,13 @@ let identifier = basic_id `act` identifier_fix
 let term_ref: parser1 pterm = v "term"
 let term_paren_shy = keysym "(" `seq` term_ref `seq` p ")"
 let term_paren = term_paren_shy `seq` wsq
+
+let abstraction_body =
+  collect_tuple (
+          keysym "(" `seq` comma_sep basic_id `seq` keysym ")"
+    `seq` keysym "=" `seq` term_ref
+  ) `act` abstraction_fix
+let abstraction_sugar idtype = basic_id `act` idtype `seq` abstraction_body
 
 let string_cons =
   let escape_chars =
@@ -108,28 +115,29 @@ let list_cons = keysym "[" `seq` comma_sep term_ref `seq` keysym "]" `act` list_
 
 let record_cons =
   let record_key = identifier `alt` string_cons `alt` term_paren
-  let record_pair = collect_tuple (record_key `seq` keysym "=" `seq` term_ref)
-  in keysym "{" `seq` comma_sep record_pair `seq` keysym "}" `act` record_cons_fix
+  let record_binding = collect_tuple (
+    (record_key `seq` keysym "=" `seq` term_ref) `alt` abstraction_sugar identifier_fix
+  )
+  in keysym "{" `seq` comma_sep record_binding `seq` keysym "}" `act` record_cons_fix
 
 let application =
   (* TODO: the term case is not specified in the design doc, is it ok? *)
   let left = identifier `alt` term_paren
   in collect_tuple (left `seq` keysym "(" `seq` comma_sep term_ref `seq` keysym ")") `act` application_fix
 
-let abstraction =
-  keyword "fun"
-  `seq` collect_tuple (keysym "(" `seq` comma_sep basic_id `seq` keysym ")" `seq` keysym "=" `seq` term_ref)
-  `act` abstraction_fix
+let abstraction = keyword "fun" `seq` abstraction_body
 
-(* TODO: let rec bindings, let function bindings *)
+(* TODO: let rec bindings *)
 let let_binding =
-  keyword "let"
-  `seq` collect_tuple (basic_id `seq` keysym "=" `seq` term_ref `seq` keyword "in" `seq` term_ref)
-  `act` let_binding_fix
+  let binding = (basic_id `seq` keysym "=" `seq` term_ref) `alt` abstraction_sugar id
+  in keyword "let"
+     `seq` collect_tuple (binding `seq` keyword "in" `seq` term_ref)
+     `act` let_binding_fix
 
 let term = (
   (* first, parsers that start with keywords/keysyms *)
-        literal_bool
+        term_paren
+  `alt` literal_bool
   `alt` string_cons
   `alt` list_cons
   `alt` record_cons

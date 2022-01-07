@@ -48,6 +48,8 @@ let parser_tests = [
   ("{a=b,c=d,e=f}", Some (record_cons_fix [(identifier_fix "a", identifier_fix "b"), (identifier_fix "c", identifier_fix "d"), (identifier_fix "e", identifier_fix "f")])),
   ("{ a=b, c = d, e= f }", Some (record_cons_fix [(identifier_fix "a", identifier_fix "b"), (identifier_fix "c", identifier_fix "d"), (identifier_fix "e", identifier_fix "f")])),
 
+  ("{ foo(a, b, c) = bar, \"ponies\" = \"cute\", (flopnax) = ropjar }", Some (record_cons_fix [(identifier_fix "foo", abstraction_fix (["a", "b", "c"], identifier_fix "bar")), (string_cons_fix ("ponies", []), string_cons_fix ("cute", [])), (identifier_fix "flopnax", identifier_fix "ropjar")])),
+
   (* Function application *)
 
   ("foo()", Some (application_fix (identifier_fix "foo", []))),
@@ -64,7 +66,8 @@ let parser_tests = [
   ("let name=expr in body", Some (let_binding_fix ("name", identifier_fix "expr", identifier_fix "body"))),
   ("let name = expr in body", Some (let_binding_fix ("name", identifier_fix "expr", identifier_fix "body"))),
   (*("let rec name = expr in body", Some (ExprLet (LetRec, LetSimple ("name", ExprId "expr"), ExprId "body"))),*)
-  (*("let foo(a, b, c) = foocode in body", Some (ExprLet (Let, LetFunction ("foo", ["a", "b", "c"], ExprId "foocode"), ExprId "body"))),*)
+  ("let foo(a, b, c) = foocode in body", Some (let_binding_fix ("foo", abstraction_fix (["a", "b", "c"], identifier_fix "foocode"), identifier_fix "body"))),
+
   ("letname = expr in body", None),
   ("let name = expr inbody", None),
 
