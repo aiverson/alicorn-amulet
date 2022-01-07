@@ -67,75 +67,77 @@ let alnum = alpha `alt` num
 let alnum_ext = alnum `alt` p "_"
 let eof = neg star
 
-let keyword str = p str `seq` wsp
+(* TODO: ideally this would recognize a basic_id, check if the capture is equal to str, and cancel the capture *)
+(* the problem is idk how to cancel the capture *)
+let keyword str = p str `seq` neg alnum_ext `seq` wsq
 let keysym str = p str `seq` wsq
 let excl pat unless = neg unless `seq` pat
 let collect_sep pat sep = collect_list (sepseq pat sep)
 let comma_sep pat = collect_sep pat (keysym ",")
+
 let basic_id_shy = c (alpha_lower `seq` (alnum_ext `rep` 0))
 let basic_id = basic_id_shy `seq` wsq
 
-(* TODO: that wsp is sus, what about a tailgating operator? *)
-(* idea: capture a basic_id and try to match exactly "true" or "false" *)
-let literal_bool: parser1 pterm = lit "true" true `alt` lit "false" false `act` literal_bool_fix `seq` wsp
-(* TODO: is wsq correct? *)
+let parse_bool = function | "true" -> Some true | "false" -> Some false | _ -> None
+let literal_bool: parser1 pterm = basic_id `actx` parse_bool `act` literal_bool_fix
+let identifier_shy = basic_id_shy `act` identifier_fix
 let identifier = basic_id `act` identifier_fix
-(* TODO: metaprogram this away *)
-let string_cons: parser1 pterm = v "string_cons"
-let list_cons: parser1 pterm = v "list_cons"
-let record_cons: parser1 pterm = v "record_cons"
-let application: parser1 pterm = v "application"
-let abstraction: parser1 pterm = v "abstraction"
-let let_binding: parser1 pterm = v "let_binding"
-let term: parser1 pterm = v "term"
 
-(* mega-TODO:
- *   let rec bindings
- *   let function bindings
- *   everything else
- *)
-let parser () =
-  grammar {
-    string_cons =
-      let escape_chars = lit "\\t" "\t" `alt` lit "\\n" "\n" `alt` lit "\\\"" "\"" `alt` lit "\\\\" "\\"
-      (* This looks really weird because escape_chars provides a capture,
-       * and nested captures are buggy, so some fiddling is needed *)
-      (* TODO: newlines (as in actual 0A byte in the input) allowed in strings? *)
-      let string_frag = collect_list (c (star `excl` s "\"$\\") `alt` escape_chars `rep` 0) `act` foldl (^) ""
-      let splice_frag = p "$" `seq` (
-              (basic_id_shy `act` identifier_fix)
-        `alt` (keysym "(" `seq` term `seq` p ")")
-        (* TODO: other splice styles *)
-      )
-      (* types are hard, and they don't let me use collect_sep here *)
-      let splice_list = collect_list (collect_tuple (splice_frag `seq` string_frag) `rep` 0)
-      in p"\"" `seq` collect_tuple (string_frag `seq` splice_list) `seq` keysym "\"" `act` string_cons_fix
-  , list_cons = keysym "[" `seq` comma_sep term `seq` keysym "]" `act` list_cons_fix
-  , record_cons =
-      let record_key =
-        (* amulet doesn't like insetting here *)
-        identifier
-        `alt` string_cons
-        `alt` (keysym "(" `seq` term `seq` keysym ")")
-      let record_pair = collect_tuple (record_key `seq` keysym "=" `seq` term)
-      in keysym "{" `seq` comma_sep record_pair `seq` keysym "}" `act` record_cons_fix
-    (* TODO: arbitrary terms on the left? too spicy for lpeg *)
-  , application = collect_tuple (identifier `seq` keysym "(" `seq` comma_sep term `seq` keysym ")") `act` application_fix
-    (* TODO: is keysym "fun" correct? *)
-  , abstraction = keysym "fun" `seq` collect_tuple (keysym "(" `seq` comma_sep basic_id `seq` keysym ")" `seq` keysym "=" `seq` term) `act` abstraction_fix
-    (* TODO: is keysym "in" correct? (probably not) *)
-  , let_binding = keyword "let" `seq` collect_tuple (basic_id `seq` keysym "=" `seq` term `seq` keysym "in" `seq` term) `act` let_binding_fix
+let term_ref: parser1 pterm = v "term"
+let term_paren_shy = keysym "(" `seq` term_ref `seq` p ")"
+let term_paren = term_paren_shy `seq` wsq
 
-  , term =
-      (* first, parsers that start with keywords/keysyms *)
-            literal_bool
-      `alt` string_cons
-      `alt` list_cons
-      `alt` record_cons
-      `alt` abstraction
-      `alt` let_binding
-      (* lastly, function application before basic identifiers *)
-      `alt` application
-      `alt` identifier
-  } term
-let parser = parser ()
+let string_cons =
+  let escape_chars =
+    foldl1 alt ((fun (s, r) -> lit s r) <$> [
+      ("\\t", "\t"),
+      ("\\n", "\n"),
+      ("\\\"", "\""),
+      ("\\\\", "\\")
+    ])
+  (* This looks really weird because escape_chars provides a capture,
+   * and nested captures are buggy, so some fiddling is needed *)
+  (* TODO: newlines (as in actual 0A byte in the input) allowed in strings? *)
+  let string_frag = collect_list (c (star `excl` s "\"$\\") `alt` escape_chars `rep` 0) `act` foldl (^) ""
+  let splice_frag = p "$" `seq` (identifier_shy `alt` term_paren_shy)
+  (* types are hard, and they don't let me use collect_sep here *)
+  let splice_list = collect_list (collect_tuple (splice_frag `seq` string_frag) `rep` 0)
+  in p "\"" `seq` collect_tuple (string_frag `seq` splice_list) `seq` keysym "\"" `act` string_cons_fix
+
+let list_cons = keysym "[" `seq` comma_sep term_ref `seq` keysym "]" `act` list_cons_fix
+
+let record_cons =
+  let record_key = identifier `alt` string_cons `alt` term_paren
+  let record_pair = collect_tuple (record_key `seq` keysym "=" `seq` term_ref)
+  in keysym "{" `seq` comma_sep record_pair `seq` keysym "}" `act` record_cons_fix
+
+let application =
+  (* TODO: the term case is not specified in the design doc, is it ok? *)
+  let left = identifier `alt` term_paren
+  in collect_tuple (left `seq` keysym "(" `seq` comma_sep term_ref `seq` keysym ")") `act` application_fix
+
+let abstraction =
+  keyword "fun"
+  `seq` collect_tuple (keysym "(" `seq` comma_sep basic_id `seq` keysym ")" `seq` keysym "=" `seq` term_ref)
+  `act` abstraction_fix
+
+(* TODO: let rec bindings, let function bindings *)
+let let_binding =
+  keyword "let"
+  `seq` collect_tuple (basic_id `seq` keysym "=" `seq` term_ref `seq` keyword "in" `seq` term_ref)
+  `act` let_binding_fix
+
+let term = (
+  (* first, parsers that start with keywords/keysyms *)
+        literal_bool
+  `alt` string_cons
+  `alt` list_cons
+  `alt` record_cons
+  `alt` abstraction
+  `alt` let_binding
+  (* lastly, function application before basic identifiers *)
+  `alt` application
+  `alt` identifier
+)
+
+let parser = grammar { term = term } term_ref
