@@ -61,12 +61,13 @@ let parser_tests = [
   (* Let expressions *)
 
   ("let name=expr in body", Some (let_binding_fix ("name", identifier_fix "expr", identifier_fix "body"))),
-  ("let name = expr in body", Some (let_binding_fix ("name", identifier_fix "expr", identifier_fix "body")))
-  (* don't forget the comma at the end of the previous line *)
+  ("let name = expr in body", Some (let_binding_fix ("name", identifier_fix "expr", identifier_fix "body"))),
   (*("let rec name = expr in body", Some (ExprLet (LetRec, LetSimple ("name", ExprId "expr"), ExprId "body"))),*)
   (*("let foo(a, b, c) = foocode in body", Some (ExprLet (Let, LetFunction ("foo", ["a", "b", "c"], ExprId "foocode"), ExprId "body")))*)
 
   (* TODO: other tests (depends on the parsers) *)
+
+  ("intentionally_failing_test", None)
 ]
 
 let parser_test parser (test, expected) =
