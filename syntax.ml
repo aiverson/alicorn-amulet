@@ -121,7 +121,7 @@ let record_cons =
   in keysym "{" `seq` comma_sep record_binding `seq` keysym "}" `act` record_cons_fix
 
 let application =
-  (* TODO: the term case is not specified in the design doc, is it ok? *)
+  (* TODO: the term case is not specified in the design doc, is it ok? (probably not, eg f(x)(y)) *)
   let left = identifier `alt` term_paren
   in collect_tuple (left `seq` keysym "(" `seq` comma_sep partial_argument `seq` keysym ")") `act` application_fix
 

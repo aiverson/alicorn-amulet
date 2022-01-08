@@ -56,11 +56,22 @@ let parser_tests = [
   ("foo(a, b, c)", Some (application_fix (identifier_fix "foo", [Some (identifier_fix "a"), Some (identifier_fix "b"), Some (identifier_fix "c")]))),
   ("foo (a,b,c)", Some (application_fix (identifier_fix "foo", [Some (identifier_fix "a"), Some (identifier_fix "b"), Some (identifier_fix "c")]))),
   ("foo(a, _, c)", Some (application_fix (identifier_fix "foo", [Some (identifier_fix "a"), None, Some (identifier_fix "c")]))),
+  ("foo(a)(_)(c)", Some (application_fix ((application_fix ((application_fix (identifier_fix "foo", [Some (identifier_fix "a")])), [None])), [Some (identifier_fix "c")]))),
+
+  (* Infix operators *)
+
+  ("foo + bar", Some (infix_op_fix (Some (identifier_fix "foo"), "+", Some (identifier_fix "bar")))),
+  ("one-to-one", Some (infix_op_fix (Some (infix_op_fix (Some (identifier_fix "one"), "-", Some (identifier_fix "to"))), "-", Some (identifier_fix "one")))),
+  ("_ ^ \"n't\"", Some (infix_op_fix (None, "^", Some (string_cons_fix ("n't", []))))),
 
   (* Prefix operators *)
 
   ("#yourmom", Some (prefix_op_fix ("#", Some (identifier_fix "yourmom")))),
   ("-_", Some (prefix_op_fix ("-", None))),
+
+  (* Suffix operators *)
+
+  ("c++", Some (suffix_op_fix (Some (identifier_fix "c"), "++"))),
 
   (* Anonymous functions / Lambdas / Abstractions *)
 
