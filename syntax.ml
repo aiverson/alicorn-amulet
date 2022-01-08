@@ -66,6 +66,7 @@ let basic_id = basic_id_shy `seq` wsq
 (* the problem is idk how to cancel the capture *)
 let keyword str = p str `seq` neg alnum_ext `seq` wsq
 let keysym str = p str `seq` wsq
+let cap pat res = pat `seq` cc res
 let excl pat unless = neg unless `seq` pat
 let collect_sep pat sep = collect_list (sepseq pat sep)
 let comma_sep pat = collect_sep pat (keysym ",")
@@ -89,7 +90,7 @@ let abstraction_body =
   ) `act` abstraction_fix
 let abstraction_sugar idtype = basic_id `act` idtype `seq` abstraction_body
 
-let partial_argument = (term_ref `act` Some) `alt` (keysym "_" `seq` cc None)
+let partial_argument = (term_ref `act` Some) `alt` (keysym "_" `cap` None)
 
 let string_cons =
   let escape_chars =
