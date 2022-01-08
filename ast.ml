@@ -18,6 +18,7 @@ type term 'id 'term =
 | SuffixOp of option 'term * 'id
 | Abstraction of list 'id * 'term
 | LetBinding of 'id * 'term * 'term
+| LetRecBinding of 'id * 'term * 'term
 (* | AsBinding of 'term * 'id * 'typ *)
 | Conditional of 'term * 'term * 'term
 | Hole of 'id
@@ -36,6 +37,7 @@ instance functor (term 'id)
   | SuffixOp (a, i)   -> SuffixOp (f <$> a, i)
   | Abstraction (v, t) -> Abstraction (v, f t)
   | LetBinding (v, t, r) -> LetBinding (v, f t, f r)
+  | LetRecBinding (v, t, r) -> LetRecBinding (v, f t, f r)
   | Conditional (c, i, e) -> Conditional (f c, f i, f e)
   | Hole i -> Hole i
 

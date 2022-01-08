@@ -32,6 +32,7 @@ let showterm = cata (function
   | SuffixOp (a, op) -> "("^(a `or_default` "_")^op^")"
   | Abstraction (ids, body) -> "fun ("^ intercalate ", " ids ^ ") = " ^ body ^ ")"
   | LetBinding (id, def, body) -> "let " ^ id ^ " = " ^ def ^ " in " ^ body
+  | LetRecBinding (id, def, body) -> "let rec " ^ id ^ " = " ^ def ^ " in " ^ body
   | Conditional (cond, cons, alt) -> "if " ^ cond ^ " then " ^ cons ^ " else " ^ alt
   | Hole id -> "$?"^id)
 
@@ -48,6 +49,7 @@ let prefix_op_fix x = Fix (PrefixOp x)
 let suffix_op_fix x = Fix (SuffixOp x)
 let abstraction_fix x = Fix (Abstraction x)
 let let_binding_fix x = Fix (LetBinding x)
+let let_rec_binding_fix x = Fix (LetRecBinding x)
 let conditional_fix x = Fix (Conditional x)
 let hole_fix x = Fix (Hole x)
 
@@ -132,13 +134,14 @@ let suffix_op_application = collect_tuple (partial_argument `seq` id_suffix_simp
 
 let abstraction = keyword "fun" `seq` abstraction_body
 
-(* TODO: let rec bindings *)
 (* TODO: operator bindings *)
-let let_binding =
+let let_body =
   let binding = (id_basic `seq` keysym "=" `seq` term_ref) `alt` abstraction_sugar id
-  in keyword "let"
-     `seq` collect_tuple (binding `seq` keyword "in" `seq` term_ref)
-     `act` let_binding_fix
+  in collect_tuple (binding `seq` keyword "in" `seq` term_ref)
+
+let let_binding = keyword "let" `seq` let_body `act` let_binding_fix
+
+let let_rec_binding = keyword "let" `seq` keyword "rec" `seq` let_body `act` let_rec_binding_fix
 
 let hole = p "$?" `seq` id_basic `act` hole_fix
 
@@ -151,6 +154,7 @@ let term = (
   `alt` record_cons
   `alt` abstraction
   `alt` let_binding
+  `alt` let_rec_binding
   `alt` hole
   (* next, function application before basic identifiers *)
   `alt` application
