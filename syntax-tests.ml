@@ -9,10 +9,10 @@ open import "./syntax.ml"
  *   tests that should fail;
  *   tests that succeed but are questionable.
  * In some cases the last part is meant to highlight ambiguities in Open's description
+ * They are split into multiple lists because of Lua limitations
  *)
-let parser_tests = [
-  (* Basic identifiers *)
 
+let identifier_tests = [
   ("list", Some (identifier_fix "list")),
   ("sum", Some (identifier_fix "sum")),
   ("foldl", Some (identifier_fix "foldl")),
@@ -25,80 +25,78 @@ let parser_tests = [
   ("x___", Some (identifier_fix "x___")),
   ("iCons", Some (identifier_fix "iCons")),
   ("e", Some (identifier_fix "e")),
-  ("truething", Some (identifier_fix "truething")),
+  ("truething", Some (identifier_fix "truething"))
+]
 
-  (* Booleans *)
-
+let boolean_tests: list (string * option pterm) = [
   ("true", Some (literal_bool_fix true)),
-  ("false", Some (literal_bool_fix false)),
+  ("false", Some (literal_bool_fix false))
+]
 
-  (* Strings *)
-
+let string_tests = [
   ("\"The quick brown fox jumps over the lazy dog.\"", Some (string_cons_fix ("The quick brown fox jumps over the lazy dog.", []))),
   ("\"The quick $color fox $(act)s over the lazy dog.\"", Some (string_cons_fix ("The quick ", [(identifier_fix "color", " fox "), (identifier_fix "act", "s over the lazy dog.")]))),
-  ("\"The \\\"quick\\\" brown fox jumps over the \\\\azy dog.\"", Some (string_cons_fix ("The \"quick\" brown fox jumps over the \\azy dog.", []))),
+  ("\"The \\\"quick\\\" brown fox jumps over the \\\\azy dog.\"", Some (string_cons_fix ("The \"quick\" brown fox jumps over the \\azy dog.", [])))
+]
 
-  (* Lists *)
-
+let list_tests = [
   ("[a,b,c]", Some (list_cons_fix [identifier_fix "a", identifier_fix "b", identifier_fix "c"])),
-  ("[ a, b, c ]", Some (list_cons_fix [identifier_fix "a", identifier_fix "b", identifier_fix "c"])),
+  ("[ a, b, c ]", Some (list_cons_fix [identifier_fix "a", identifier_fix "b", identifier_fix "c"]))
+]
 
-  (* Records *)
-
+let record_tests = [
   ("{a=b,c=d,e=f}", Some (record_cons_fix [(identifier_fix "a", identifier_fix "b"), (identifier_fix "c", identifier_fix "d"), (identifier_fix "e", identifier_fix "f")])),
   ("{ a=b, c = d, e= f }", Some (record_cons_fix [(identifier_fix "a", identifier_fix "b"), (identifier_fix "c", identifier_fix "d"), (identifier_fix "e", identifier_fix "f")])),
 
-  ("{ foo(a, b, c) = bar, \"ponies\" = \"cute\", (flopnax) = ropjar }", Some (record_cons_fix [(identifier_fix "foo", abstraction_fix (["a", "b", "c"], identifier_fix "bar")), (string_cons_fix ("ponies", []), string_cons_fix ("cute", [])), (identifier_fix "flopnax", identifier_fix "ropjar")])),
+  ("{ foo(a, b, c) = bar, \"ponies\" = \"cute\", (flopnax) = ropjar }", Some (record_cons_fix [(identifier_fix "foo", abstraction_fix (["a", "b", "c"], identifier_fix "bar")), (string_cons_fix ("ponies", []), string_cons_fix ("cute", [])), (identifier_fix "flopnax", identifier_fix "ropjar")]))
+]
 
-  (* Function application *)
-
+let application_tests = [
   ("foo()", Some (application_fix (identifier_fix "foo", []))),
   ("foo(a, b, c)", Some (application_fix (identifier_fix "foo", [Some (identifier_fix "a"), Some (identifier_fix "b"), Some (identifier_fix "c")]))),
   ("foo (a,b,c)", Some (application_fix (identifier_fix "foo", [Some (identifier_fix "a"), Some (identifier_fix "b"), Some (identifier_fix "c")]))),
   ("foo(a, _, c)", Some (application_fix (identifier_fix "foo", [Some (identifier_fix "a"), None, Some (identifier_fix "c")]))),
-  ("foo(a)(_)(c)", Some (application_fix ((application_fix ((application_fix (identifier_fix "foo", [Some (identifier_fix "a")])), [None])), [Some (identifier_fix "c")]))),
+  ("foo(a)(_)(c)", Some (application_fix ((application_fix ((application_fix (identifier_fix "foo", [Some (identifier_fix "a")])), [None])), [Some (identifier_fix "c")])))
+]
 
-  (* Infix operators *)
-
+let infix_op_tests = [
   ("foo + bar", Some (infix_op_fix (Some (identifier_fix "foo"), "+", Some (identifier_fix "bar")))),
   ("one-to-one", Some (infix_op_fix (Some (infix_op_fix (Some (identifier_fix "one"), "-", Some (identifier_fix "to"))), "-", Some (identifier_fix "one")))),
-  ("_ ^ \"n't\"", Some (infix_op_fix (None, "^", Some (string_cons_fix ("n't", []))))),
+  ("_ ^ \"n't\"", Some (infix_op_fix (None, "^", Some (string_cons_fix ("n't", [])))))
+]
 
-  (* Prefix operators *)
-
+let prefix_op_tests = [
   ("#yourmom", Some (prefix_op_fix ("#", Some (identifier_fix "yourmom")))),
-  ("-_", Some (prefix_op_fix ("-", None))),
+  ("-_", Some (prefix_op_fix ("-", None)))
+]
 
-  (* Suffix operators *)
+let suffix_op_tests = [
+  ("c++", Some (suffix_op_fix (Some (identifier_fix "c"), "++")))
+]
 
-  ("c++", Some (suffix_op_fix (Some (identifier_fix "c"), "++"))),
-
-  (* Anonymous functions / Lambdas / Abstractions *)
-
+let abstraction_tests = [
   ("fun(a, b, c) = body", Some (abstraction_fix (["a", "b", "c"], identifier_fix "body"))),
-  ("fun (a ,b, c )=body", Some (abstraction_fix (["a", "b", "c"], identifier_fix "body"))),
+  ("fun (a ,b, c )=body", Some (abstraction_fix (["a", "b", "c"], identifier_fix "body")))
+]
 
-  (* Let expressions *)
-
+let let_expression_tests = [
   ("let name=expr in body", Some (let_binding_fix ("name", identifier_fix "expr", identifier_fix "body"))),
   ("let name = expr in body", Some (let_binding_fix ("name", identifier_fix "expr", identifier_fix "body"))),
   ("let foo(a, b, c) = foocode in body", Some (let_binding_fix ("foo", abstraction_fix (["a", "b", "c"], identifier_fix "foocode"), identifier_fix "body"))),
 
   ("letname = expr in body", None),
-  ("let name = expr inbody", None),
-
-  (* Let Rec expressions *)
-
-  ("let rec name = expr in body", Some (let_rec_binding_fix ("name", identifier_fix "expr", identifier_fix "body"))),
-
-  (* Typed holes *)
-
-  ("$?help", Some (hole_fix "help")),
-
-  (* TODO: other tests (depends on the parsers) *)
-
-  ("intentionally_failing_test", None)
+  ("let name = expr inbody", None)
 ]
+
+let let_rec_expression_tests = [
+  ("let rec name = expr in body", Some (let_rec_binding_fix ("name", identifier_fix "expr", identifier_fix "body")))
+]
+
+let hole_tests = [
+  ("$?help", Some (hole_fix "help"))
+]
+
+(* TODO: other tests (depends on the parsers) *)
 
 let parser_test parser (test, expected) =
   let got = parse (parser `seq` eof) test
@@ -115,4 +113,16 @@ let run_tests (parser, tests) =
   let fails = filter_failing results
   in map print fails
 
-let _ = run_tests (parser, parser_tests)
+let _ = run_tests (parser, identifier_tests)
+let _ = run_tests (parser, boolean_tests)
+let _ = run_tests (parser, string_tests)
+let _ = run_tests (parser, list_tests)
+let _ = run_tests (parser, record_tests)
+let _ = run_tests (parser, application_tests)
+let _ = run_tests (parser, infix_op_tests)
+let _ = run_tests (parser, prefix_op_tests)
+let _ = run_tests (parser, suffix_op_tests)
+let _ = run_tests (parser, abstraction_tests)
+let _ = run_tests (parser, let_expression_tests)
+let _ = run_tests (parser, let_rec_expression_tests)
+let _ = run_tests (parser, hole_tests)

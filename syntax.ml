@@ -143,6 +143,7 @@ let let_binding = keyword "let" `seq` let_body `act` let_binding_fix
 
 let let_rec_binding = keyword "let" `seq` keyword "rec" `seq` let_body `act` let_rec_binding_fix
 
+(* TODO: id optional *)
 let hole = p "$?" `seq` id_basic `act` hole_fix
 
 let term = (
