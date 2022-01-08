@@ -71,6 +71,10 @@ let parser_tests = [
   ("letname = expr in body", None),
   ("let name = expr inbody", None),
 
+  (* Typed holes *)
+
+  ("$?help", Some (hole_fix "help")),
+
   (* TODO: other tests (depends on the parsers) *)
 
   ("intentionally_failing_test", None)

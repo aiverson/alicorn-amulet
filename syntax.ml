@@ -134,6 +134,8 @@ let let_binding =
      `seq` collect_tuple (binding `seq` keyword "in" `seq` term_ref)
      `act` let_binding_fix
 
+let hole = p "$?" `seq` basic_id `act` hole_fix
+
 let term = (
   (* first, parsers that start with keywords/keysyms *)
         term_paren
@@ -143,6 +145,7 @@ let term = (
   `alt` record_cons
   `alt` abstraction
   `alt` let_binding
+  `alt` hole
   (* lastly, function application before basic identifiers *)
   `alt` application
   `alt` identifier
