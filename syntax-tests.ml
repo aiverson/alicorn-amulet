@@ -53,8 +53,9 @@ let parser_tests = [
   (* Function application *)
 
   ("foo()", Some (application_fix (identifier_fix "foo", []))),
-  ("foo(a, b, c)", Some (application_fix (identifier_fix "foo", [identifier_fix "a", identifier_fix "b", identifier_fix "c"]))),
-  ("foo (a,b,c)", Some (application_fix (identifier_fix "foo", [identifier_fix "a", identifier_fix "b", identifier_fix "c"]))),
+  ("foo(a, b, c)", Some (application_fix (identifier_fix "foo", [Some (identifier_fix "a"), Some (identifier_fix "b"), Some (identifier_fix "c")]))),
+  ("foo (a,b,c)", Some (application_fix (identifier_fix "foo", [Some (identifier_fix "a"), Some (identifier_fix "b"), Some (identifier_fix "c")]))),
+  ("foo(a, _, c)", Some (application_fix (identifier_fix "foo", [Some (identifier_fix "a"), None, Some (identifier_fix "c")]))),
 
   (* Anonymous functions / Lambdas / Abstractions *)
 

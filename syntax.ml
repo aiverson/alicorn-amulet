@@ -26,14 +26,10 @@ let showterm = cata (function
   | ListCons ts -> intercalate ", " ts
   | RecordCons tts -> map (fun (a, b) -> a ^ " = " ^ b) tts |> intercalate ", "
   | Identifier name -> name
-  | Application (f, xs) -> f ^ "(" ^ intercalate ", " xs ^ ")"
-  | PartialApplication (f, xs) -> f ^ "(" ^ intercalate "," (map (function | Some x -> x | None -> "_") xs) ^")"
-  | InfixOp (a, op, b) -> "("^a^" "^op^" "^b^")"
-  | PartialInfixOp (a, op, b) -> "("^(a `or_default` "_")^" "^op^" "^(b `or_default` "_")^")"
-  | PrefixOp (op, b) -> "("^op^b^")"
-  | PartialPrefixOp (op, b) -> "("^op^(b `or_default` "_")^")"
-  | SuffixOp (a, op) -> "("^a^op^")"
-  | PartialSuffixOp (a, op) -> "("^(a `or_default` "_")^op^")"
+  | Application (f, xs) -> f ^ "(" ^ intercalate "," (map (function | Some x -> x | None -> "_") xs) ^")"
+  | InfixOp (a, op, b) -> "("^(a `or_default` "_")^" "^op^" "^(b `or_default` "_")^")"
+  | PrefixOp (op, b) -> "("^op^(b `or_default` "_")^")"
+  | SuffixOp (a, op) -> "("^(a `or_default` "_")^op^")"
   | Abstraction (ids, body) -> "fun ("^ intercalate ", " ids ^ ") = " ^ body ^ ")"
   | LetBinding (id, def, body) -> "let " ^ id ^ " = " ^ def ^ " in " ^ body
   | Conditional (cond, cons, alt) -> "if " ^ cond ^ " then " ^ cons ^ " else " ^ alt
@@ -47,13 +43,9 @@ let list_cons_fix x = Fix (ListCons x)
 let record_cons_fix x = Fix (RecordCons x)
 let identifier_fix x = Fix (Identifier x)
 let application_fix x = Fix (Application x)
-let partial_application_fix x = Fix (PartialApplication x)
 let infix_op_fix x = Fix (InfixOp x)
-let partial_infix_op_fix x = Fix (PartialInfixOp x)
 let prefix_op_fix x = Fix (PrefixOp x)
-let partial_prefix_op_fix x = Fix (PartialPrefixOp x)
 let suffix_op_fix x = Fix (SuffixOp x)
-let partial_suffix_op_fix x = Fix (PartialSuffixOp x)
 let abstraction_fix x = Fix (Abstraction x)
 let let_binding_fix x = Fix (LetBinding x)
 let conditional_fix x = Fix (Conditional x)
@@ -97,6 +89,8 @@ let abstraction_body =
   ) `act` abstraction_fix
 let abstraction_sugar idtype = basic_id `act` idtype `seq` abstraction_body
 
+let partial_argument = (term_ref `act` Some) `alt` (keysym "_" `seq` cc None)
+
 let string_cons =
   let escape_chars =
     foldl1 alt ((fun (s, r) -> lit s r) <$> [
@@ -126,7 +120,7 @@ let record_cons =
 let application =
   (* TODO: the term case is not specified in the design doc, is it ok? *)
   let left = identifier `alt` term_paren
-  in collect_tuple (left `seq` keysym "(" `seq` comma_sep term_ref `seq` keysym ")") `act` application_fix
+  in collect_tuple (left `seq` keysym "(" `seq` comma_sep partial_argument `seq` keysym ")") `act` application_fix
 
 let abstraction = keyword "fun" `seq` abstraction_body
 
