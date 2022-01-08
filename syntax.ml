@@ -62,6 +62,7 @@ let eof = neg star
 let id_basic_shy = c (alpha_lower `seq` (alnum_ext `rep` 0))
 let id_basic = id_basic_shy `seq` wsq
 let id_prefix = c (s "#+-" `rep` 1) `seq` wsq
+let id_suffix_simple = c (s "+-" `rep` 1) `seq` wsq
 
 (* TODO: ideally this would recognize an id_basic, check if the capture is equal to str, and cancel the capture *)
 (* the problem is idk how to cancel the capture *)
@@ -126,6 +127,9 @@ let application =
 
 let prefix_op = collect_tuple (id_prefix `seq` partial_argument) `act` prefix_op_fix
 
+(* TODO: advanced suffix operators *)
+let suffix_op = collect_tuple (partial_argument `seq` id_suffix_simple) `act` suffix_op_fix
+
 let abstraction = keyword "fun" `seq` abstraction_body
 
 (* TODO: let rec bindings *)
@@ -150,7 +154,8 @@ let term = (
   (* next, function application before basic identifiers *)
   `alt` application
   `alt` identifier
-  (* lastly, operators (terms on the left are scary) *)
+  (* lastly, operators *)
+  (* TODO: terms on the left are scary *)
   (*`alt` suffix_op*)
   `alt` prefix_op
   (*`alt` infix_op*)
