@@ -59,10 +59,11 @@ let alnum = alpha `alt` num
 let alnum_ext = alnum `alt` p "_"
 let eof = neg star
 
-let basic_id_shy = c (alpha_lower `seq` (alnum_ext `rep` 0))
-let basic_id = basic_id_shy `seq` wsq
+let id_basic_shy = c (alpha_lower `seq` (alnum_ext `rep` 0))
+let id_basic = id_basic_shy `seq` wsq
+let id_prefix = c (s "#+-" `rep` 1) `seq` wsq
 
-(* TODO: ideally this would recognize a basic_id, check if the capture is equal to str, and cancel the capture *)
+(* TODO: ideally this would recognize an id_basic, check if the capture is equal to str, and cancel the capture *)
 (* the problem is idk how to cancel the capture *)
 let keyword str = p str `seq` neg alnum_ext `seq` wsq
 let keysym str = p str `seq` wsq
@@ -75,9 +76,9 @@ let comma_sep pat = collect_sep pat (keysym ",")
 (* this means conditionals are just pattern matches on bool *)
 (* (not strictly true, Open has Ideas) *)
 let parse_bool = function | "true" -> Some true | "false" -> Some false | _ -> None
-let literal_bool: parser1 pterm = basic_id `actx` parse_bool `act` literal_bool_fix
-let identifier_shy = basic_id_shy `act` identifier_fix
-let identifier = basic_id `act` identifier_fix
+let literal_bool: parser1 pterm = id_basic `actx` parse_bool `act` literal_bool_fix
+let identifier_shy = id_basic_shy `act` identifier_fix
+let identifier = id_basic `act` identifier_fix
 
 let term_ref: parser1 pterm = v "term"
 let term_paren_shy = keysym "(" `seq` term_ref `seq` p ")"
@@ -85,10 +86,10 @@ let term_paren = term_paren_shy `seq` wsq
 
 let abstraction_body =
   collect_tuple (
-          keysym "(" `seq` comma_sep basic_id `seq` keysym ")"
+          keysym "(" `seq` comma_sep id_basic `seq` keysym ")"
     `seq` keysym "=" `seq` term_ref
   ) `act` abstraction_fix
-let abstraction_sugar idtype = basic_id `act` idtype `seq` abstraction_body
+let abstraction_sugar idtype = id_basic `act` idtype `seq` abstraction_body
 
 let partial_argument = (term_ref `act` Some) `alt` (keysym "_" `cap` None)
 
@@ -123,16 +124,18 @@ let application =
   let left = identifier `alt` term_paren
   in collect_tuple (left `seq` keysym "(" `seq` comma_sep partial_argument `seq` keysym ")") `act` application_fix
 
+let prefix_op = collect_tuple (id_prefix `seq` partial_argument) `act` prefix_op_fix
+
 let abstraction = keyword "fun" `seq` abstraction_body
 
 (* TODO: let rec bindings *)
 let let_binding =
-  let binding = (basic_id `seq` keysym "=" `seq` term_ref) `alt` abstraction_sugar id
+  let binding = (id_basic `seq` keysym "=" `seq` term_ref) `alt` abstraction_sugar id
   in keyword "let"
      `seq` collect_tuple (binding `seq` keyword "in" `seq` term_ref)
      `act` let_binding_fix
 
-let hole = p "$?" `seq` basic_id `act` hole_fix
+let hole = p "$?" `seq` id_basic `act` hole_fix
 
 let term = (
   (* first, parsers that start with keywords/keysyms *)
@@ -144,9 +147,13 @@ let term = (
   `alt` abstraction
   `alt` let_binding
   `alt` hole
-  (* lastly, function application before basic identifiers *)
+  (* next, function application before basic identifiers *)
   `alt` application
   `alt` identifier
+  (* lastly, operators (terms on the left are scary) *)
+  (*`alt` suffix_op*)
+  `alt` prefix_op
+  (*`alt` infix_op*)
 )
 
 let parser = grammar { term = term } term_ref

@@ -57,6 +57,11 @@ let parser_tests = [
   ("foo (a,b,c)", Some (application_fix (identifier_fix "foo", [Some (identifier_fix "a"), Some (identifier_fix "b"), Some (identifier_fix "c")]))),
   ("foo(a, _, c)", Some (application_fix (identifier_fix "foo", [Some (identifier_fix "a"), None, Some (identifier_fix "c")]))),
 
+  (* Prefix operators *)
+
+  ("#yourmom", Some (prefix_op_fix ("#", Some (identifier_fix "yourmom")))),
+  ("-_", Some (prefix_op_fix ("-", None))),
+
   (* Anonymous functions / Lambdas / Abstractions *)
 
   ("fun(a, b, c) = body", Some (abstraction_fix (["a", "b", "c"], identifier_fix "body"))),
