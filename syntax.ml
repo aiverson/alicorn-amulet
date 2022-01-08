@@ -78,6 +78,9 @@ let excl pat unless = neg unless `seq` pat
 let collect_sep pat sep = collect_list (sepseq pat sep)
 let comma_sep pat = collect_sep pat (keysym ",")
 
+(* TODO: bools are just type bool = True | False *)
+(* this means conditionals are just pattern matches on bool *)
+(* (not strictly true, Open has Ideas) *)
 let parse_bool = function | "true" -> Some true | "false" -> Some false | _ -> None
 let literal_bool: parser1 pterm = basic_id `actx` parse_bool `act` literal_bool_fix
 let identifier_shy = basic_id_shy `act` identifier_fix
@@ -104,7 +107,7 @@ let string_cons =
     ])
   (* This looks really weird because escape_chars provides a capture,
    * and nested captures are buggy, so some fiddling is needed *)
-  (* TODO: newlines (as in actual 0A byte in the input) allowed in strings? *)
+  (* TODO: newlines (as in actual 0A byte in the input) probably not allowed in strings *)
   let string_frag = collect_list (c (star `excl` s "\"$\\") `alt` escape_chars `rep` 0) `act` foldl (^) ""
   let splice_frag = p "$" `seq` (identifier_shy `alt` term_paren_shy)
   (* types are hard, and they don't let me use collect_sep here *)
