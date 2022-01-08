@@ -125,14 +125,15 @@ let application =
   let left = identifier `alt` term_paren
   in collect_tuple (left `seq` keysym "(" `seq` comma_sep partial_argument `seq` keysym ")") `act` application_fix
 
-let prefix_op = collect_tuple (id_prefix `seq` partial_argument) `act` prefix_op_fix
+let prefix_op_application = collect_tuple (id_prefix `seq` partial_argument) `act` prefix_op_fix
 
 (* TODO: advanced suffix operators *)
-let suffix_op = collect_tuple (partial_argument `seq` id_suffix_simple) `act` suffix_op_fix
+let suffix_op_application = collect_tuple (partial_argument `seq` id_suffix_simple) `act` suffix_op_fix
 
 let abstraction = keyword "fun" `seq` abstraction_body
 
 (* TODO: let rec bindings *)
+(* TODO: operator bindings *)
 let let_binding =
   let binding = (id_basic `seq` keysym "=" `seq` term_ref) `alt` abstraction_sugar id
   in keyword "let"
@@ -156,9 +157,9 @@ let term = (
   `alt` identifier
   (* lastly, operators *)
   (* TODO: terms on the left are scary *)
-  (*`alt` suffix_op*)
-  `alt` prefix_op
-  (*`alt` infix_op*)
+  (*`alt` suffix_op_application*)
+  `alt` prefix_op_application
+  (*`alt` infix_op_application*)
 )
 
 let parser = grammar { term = term } term_ref
