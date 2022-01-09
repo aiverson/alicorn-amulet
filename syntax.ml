@@ -94,7 +94,9 @@ let abstraction_body =
   ) `act` abstraction_fix
 (* TODO: this is not enough, we need a whole pattern match identifier type
  * it needs to handle identifiers, functions, operators,
- * and possibly more possibly self-referencing cases *)
+ * and possibly more possibly self-referencing cases
+ * this will also allow operators to be represented as function application
+ * with operator-type identifiers *)
 let abstraction_sugar idtype = id_basic `act` idtype `seq` abstraction_body
 
 let partial_argument = (term_ref `act` Some) `alt` (keysym "_" `cap` None)
@@ -160,14 +162,14 @@ let term = (
   `alt` let_binding
   `alt` let_rec_binding
   `alt` hole
-  (* next, function application before basic identifiers *)
-  `alt` application
-  `alt` identifier
-  (* lastly, operators *)
+  (* next, all the kinds of function application *)
   (* TODO: terms on the left are scary *)
+  `alt` application
   (*`alt` suffix_op_application*)
   `alt` prefix_op_application
   (*`alt` infix_op_application*)
+  (* lastly, basic identifiers *)
+  `alt` identifier
 )
 
 let parser = grammar { term = term } term_ref
