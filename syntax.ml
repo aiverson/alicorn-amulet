@@ -92,6 +92,9 @@ let abstraction_body =
           keysym "(" `seq` comma_sep id_basic `seq` keysym ")"
     `seq` keysym "=" `seq` term_ref
   ) `act` abstraction_fix
+(* TODO: this is not enough, we need a whole pattern match identifier type
+ * it needs to handle identifiers, functions, operators,
+ * and possibly more possibly self-referencing cases *)
 let abstraction_sugar idtype = id_basic `act` idtype `seq` abstraction_body
 
 let partial_argument = (term_ref `act` Some) `alt` (keysym "_" `cap` None)

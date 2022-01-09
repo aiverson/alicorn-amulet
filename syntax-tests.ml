@@ -67,6 +67,8 @@ let infix_op_tests = [
 
 let prefix_op_tests = [
   ("#yourmom", Some (prefix_op_fix ("#", Some (identifier_fix "yourmom")))),
+  ("-#foo", Some (prefix_op_fix ("-#", Some (identifier_fix "foo")))),
+  ("-(#bar)", Some (prefix_op_fix ("-", Some (prefix_op_fix ("#", Some (identifier_fix "bar")))))),
   ("-_", Some (prefix_op_fix ("-", None)))
 ]
 
