@@ -151,6 +151,7 @@ let term_key = (
   `alt` let_binding
   `alt` let_rec_binding
   `alt` hole
+  `alt` identifier
 )
 
 (* Left-recursive parsers are hard >< *)
@@ -166,7 +167,7 @@ let swap f (l, r) = f (r, l)
 
 let application =
   (* cursed idea: _(arg) meta-partial function application *)
-  let left = term_key `alt` identifier
+  let left = term_key
   let paren_app = keysym "(" `seq` comma_sep (partial_argument term_ref) `seq` keysym ")"
   let paren_rep = collect_list (paren_app `rep` 0)
   let application_ops = collect_tuple (left `seq` paren_rep)
