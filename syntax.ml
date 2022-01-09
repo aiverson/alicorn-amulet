@@ -99,7 +99,7 @@ let abstraction_body =
  * with operator-type identifiers *)
 let abstraction_sugar idtype = id_basic `act` idtype `seq` abstraction_body
 
-let partial_argument = (term_ref `act` Some) `alt` (keysym "_" `cap` None)
+let partial_argument t = (t `act` Some) `alt` (keysym "_" `cap` None)
 
 let string_cons =
   let escape_chars =
@@ -127,16 +127,6 @@ let record_cons =
   )
   in keysym "{" `seq` comma_sep record_binding `seq` keysym "}" `act` record_cons_fix
 
-let application =
-  (* TODO: the term case is not specified in the design doc, is it ok? (probably not, eg f(x)(y)) *)
-  let left = identifier `alt` term_paren
-  in collect_tuple (left `seq` keysym "(" `seq` comma_sep partial_argument `seq` keysym ")") `act` application_fix
-
-let prefix_op_application = collect_tuple (id_prefix `seq` partial_argument) `act` prefix_op_fix
-
-(* TODO: advanced suffix operators *)
-let suffix_op_application = collect_tuple (partial_argument `seq` id_suffix_simple) `act` suffix_op_fix
-
 let abstraction = keyword "fun" `seq` abstraction_body
 
 (* TODO: operator bindings *)
@@ -151,8 +141,7 @@ let let_rec_binding = keyword "let" `seq` keyword "rec" `seq` let_body `act` let
 (* TODO: id optional *)
 let hole = p "$?" `seq` id_basic `act` hole_fix
 
-let term = (
-  (* first, parsers that start with keywords/keysyms *)
+let term_key = (
         term_paren
   `alt` literal_bool
   `alt` string_cons
@@ -162,14 +151,44 @@ let term = (
   `alt` let_binding
   `alt` let_rec_binding
   `alt` hole
-  (* next, all the kinds of function application *)
-  (* TODO: terms on the left are scary *)
-  `alt` application
-  (*`alt` suffix_op_application*)
-  `alt` prefix_op_application
-  (*`alt` infix_op_application*)
-  (* lastly, basic identifiers *)
-  `alt` identifier
 )
+
+(* Left-recursive parsers are hard >< *)
+(* The basic idea here is we're isolating each left-recursive parser
+ * in a way where each parser can collect itself in a loop, and
+ * higher-precedence parsers, but requires parens for lower-
+ * -precedence parsers *)
+(* I'll be honest, i'm totally in-over-my-head here. I'm entirely
+ * reliant on the type system to hold this deck of cards up *)
+
+let fixup f (l, rs) = foldl (fun l r -> f (l, r)) l rs
+let swap f (l, r) = f (r, l)
+
+let application =
+  (* cursed idea: _(arg) meta-partial function application *)
+  let left = term_key `alt` identifier
+  let paren_app = keysym "(" `seq` comma_sep (partial_argument term_ref) `seq` keysym ")"
+  let paren_rep = collect_list (paren_app `rep` 0)
+  let application_ops = collect_tuple (left `seq` paren_rep)
+  in application_ops `act` fixup application_fix
+
+(* TODO: advanced suffix operators *)
+let suffix_op_application =
+  let left = partial_argument application
+  let suffix_rep = collect_list (id_suffix_simple `rep` 0)
+  let suffix_ops = collect_tuple (left `seq` suffix_rep)
+  (* weird hack to handle the option *)
+  in suffix_ops `actx` fixup (Some % suffix_op_fix)
+
+(* prefix ops aren't left recursive, but putting
+ * them here is necessary for correct precedence *)
+let prefix_op_application =
+  let left = partial_argument suffix_op_application
+  let prefix_rep = collect_list (id_prefix `rep` 0)
+  let prefix_ops = collect_tuple (prefix_rep `seq` left) (* "left" lol *)
+  (* weirder hack to handle the fact it isn't left-recursive *)
+  in prefix_ops `actx` swap (fixup (Some % swap prefix_op_fix))
+
+let term = prefix_op_application (*infix_op_application*)
 
 let parser = grammar { term = term } term_ref
