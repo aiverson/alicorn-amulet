@@ -191,12 +191,11 @@ let prefix_op_application =
 
 let infix_op_application =
   let left = partial_argument prefix_op_application
-  (* if there's anything lower precedence than infix ops,
-   * then this will be incorrect *)
-  let right = partial_argument term_ref
-  (* TODO: harmonize with suffix operators *)
-  in collect_tuple (left `seq` id_infix `seq` right) `act` infix_op_fix
-     `alt` prefix_op_application
+  let right = collect_tuple (id_infix `seq` partial_argument term_ref)
+  let right_rep = collect_list (right `rep` 0)
+  let infix_ops = collect_tuple (left `seq` right_rep)
+  let fold (l, rs) = foldl (fun l (op, r) -> Some (infix_op_fix (l, op, r))) l rs
+  in infix_ops `actx` fold
 
 let term = infix_op_application
 
