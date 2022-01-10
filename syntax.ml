@@ -159,11 +159,6 @@ let term_key = (
  * in a way where each parser can collect itself in a loop, and
  * higher-precedence parsers, but requires parens for lower-
  * -precedence parsers *)
-(* I'll be honest, i'm totally in-over-my-head here. I'm entirely
- * reliant on the type system to hold this deck of cards up *)
-
-let fixup f (l, rs) = foldl (fun l r -> f (l, r)) l rs
-let swap f (l, r) = f (r, l)
 
 let application =
   (* cursed idea: _(arg) meta-partial function application *)
@@ -171,24 +166,25 @@ let application =
   let paren_app = keysym "(" `seq` comma_sep (partial_argument term_ref) `seq` keysym ")"
   let paren_rep = collect_list (paren_app `rep` 0)
   let application_ops = collect_tuple (left `seq` paren_rep)
-  in application_ops `act` fixup application_fix
+  let fold (l, ps) = foldl (fun l p -> application_fix (l, p)) l ps
+  in application_ops `act` fold
 
 (* TODO: advanced suffix operators *)
 let suffix_op_application =
   let left = partial_argument application
   let suffix_rep = collect_list (id_suffix_simple `rep` 0)
   let suffix_ops = collect_tuple (left `seq` suffix_rep)
-  (* weird hack to handle the option *)
-  in suffix_ops `actx` fixup (Some % suffix_op_fix)
+  let fold (l, ops) = foldl (fun l op -> Some (suffix_op_fix (l, op))) l ops
+  in suffix_ops `actx` fold
 
 (* prefix ops aren't left recursive, but putting
  * them here is necessary for correct precedence *)
 let prefix_op_application =
-  let left = partial_argument suffix_op_application
+  let right = partial_argument suffix_op_application
   let prefix_rep = collect_list (id_prefix `rep` 0)
-  let prefix_ops = collect_tuple (prefix_rep `seq` left) (* "left" lol *)
-  (* weirder hack to handle the fact it isn't left-recursive *)
-  in prefix_ops `actx` swap (fixup (Some % swap prefix_op_fix))
+  let prefix_ops = collect_tuple (prefix_rep `seq` right)
+  let fold (ops, r) = foldr (fun op r -> Some (prefix_op_fix (op, r))) r ops
+  in prefix_ops `actx` fold
 
 let term = prefix_op_application (*infix_op_application*)
 

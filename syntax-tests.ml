@@ -101,6 +101,10 @@ let hole_tests = [
   ("$?help", Some (hole_fix "help"))
 ]
 
+let misc_tests = [
+  ("_", None)
+]
+
 (* TODO: other tests (depends on the parsers) *)
 
 let parser_test parser (test, expected) =
@@ -131,3 +135,4 @@ let _ = run_tests (parser, abstraction_tests)
 let _ = run_tests (parser, let_expression_tests)
 let _ = run_tests (parser, let_rec_expression_tests)
 let _ = run_tests (parser, hole_tests)
+let _ = run_tests (parser, misc_tests)
