@@ -174,7 +174,8 @@ let application =
 (* TODO: advanced suffix operators *)
 let suffix_op_application =
   let left = partial_argument application
-  let suffix_rep = collect_list (id_suffix_simple `rep` 0)
+  (* hacky workaround to make sure suffix ops don't eat infix ops *)
+  let suffix_rep = collect_list ((id_suffix_simple `seq` neg term_ref) `rep` 0)
   let suffix_ops = collect_tuple (left `seq` suffix_rep)
   let fold (l, ops) = foldl (fun l op -> Some (suffix_op_fix (l, op))) l ops
   in suffix_ops `actx` fold
