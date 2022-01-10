@@ -110,18 +110,27 @@ let misc_tests = [
 
 let parser_test parser (test, expected) =
   let got = parse (parser `seq` eof) test
+  let dgot = parse parser test
   (* TODO: figure out how to impl eq for term, to fix this hack *)
   (* ideally impl show as well, showterm doesn't quite show the ast *)
   let sexp = showterm <$> expected
   let sgot = showterm <$> got
-  in (sexp == sgot, test, sexp, sgot)
+  let sdgot = showterm <$> dgot
+  in (sexp == sgot, test, sexp, sgot, sdgot)
 
 let filter_failing results = filter (fun (success, _) -> not success) results
+
+let show_result (success, test, exp, got, debug) =
+  "Success : " ^ show success ^ "\n"
+  ^ "Test    : " ^ test ^ "\n"
+  ^ "Expected: " ^ show exp ^ "\n"
+  ^ "Got     : " ^ show got ^ "\n"
+  ^ "Partial : " ^ show debug ^ "\n"
 
 let run_tests (parser, tests) =
   let results = parser_test parser <$> tests
   let fails = filter_failing results
-  in map print fails
+  in map (put_line % show_result) fails
 
 let _ = run_tests (parser, identifier_tests)
 let _ = run_tests (parser, boolean_tests)
