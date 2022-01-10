@@ -106,7 +106,8 @@ let hole_tests = [
 ]
 
 let misc_tests = [
-  ("_", None)
+  ("_", None),
+  ("a + + b", None) (* This is ambiguous, and should be banned *)
 ]
 
 (* TODO: other tests (depends on the parsers) *)
