@@ -71,7 +71,8 @@ let prefix_op_tests = [
   ("-#foo", Some (prefix_op_fix ("-#", Some (identifier_fix "foo")))),
   ("-(#bar)", Some (prefix_op_fix ("-", Some (prefix_op_fix ("#", Some (identifier_fix "bar")))))),
   ("- #bar", Some (prefix_op_fix ("-", Some (prefix_op_fix ("#", Some (identifier_fix "bar")))))),
-  ("-_", Some (prefix_op_fix ("-", None)))
+  ("-_", Some (prefix_op_fix ("-", None))),
+  ("-+- sparkle -+-", Some (prefix_op_fix ("-+-", Some (suffix_op_fix (Some (identifier_fix "sparkle"), "-+-")))))
 ]
 
 let suffix_op_tests = [
