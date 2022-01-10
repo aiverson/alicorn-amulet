@@ -63,6 +63,8 @@ let eof = neg star
 
 let id_basic_shy = c (alpha_lower `seq` (alnum_ext `rep` 0))
 let id_basic = id_basic_shy `seq` wsq
+(* TODO: different infix precedences *)
+let id_infix = c (s "&+-<@^" `seq` (s "&+-@>" `rep` 0)) `seq` wsq
 let id_prefix = c (s "#+-" `rep` 1) `seq` wsq
 let id_suffix_simple = c (s "+-" `rep` 1) `seq` wsq
 
@@ -186,6 +188,15 @@ let prefix_op_application =
   let fold (ops, r) = foldr (fun op r -> Some (prefix_op_fix (op, r))) r ops
   in prefix_ops `actx` fold
 
-let term = prefix_op_application (*infix_op_application*)
+let infix_op_application =
+  let left = partial_argument prefix_op_application
+  (* if there's anything lower precedence than infix ops,
+   * then this will be incorrect *)
+  let right = partial_argument term_ref
+  (* TODO: harmonize with suffix operators *)
+  in collect_tuple (left `seq` id_infix `seq` right) `act` infix_op_fix
+     `alt` prefix_op_application
+
+let term = infix_op_application
 
 let parser = grammar { term = term } term_ref
