@@ -12,6 +12,9 @@ open import "./syntax.ml"
  * They are split into multiple lists because of Lua limitations
  *)
 
+(* TODO: quick-test format (test1, test2) pairs
+ * where test2 is parenthesized in a way that makes parsing obvious *)
+
 let identifier_tests = [
   ("list", Some (identifier_fix "list")),
   ("sum", Some (identifier_fix "sum")),
@@ -63,7 +66,7 @@ let infix_op_tests = [
   ("foo + bar", Some (infix_op_fix (Some (identifier_fix "foo"), "+", Some (identifier_fix "bar")))),
   ("one-to-one", Some (infix_op_fix (Some (infix_op_fix (Some (identifier_fix "one"), "-", Some (identifier_fix "to"))), "-", Some (identifier_fix "one")))),
   ("_ ^ \"n't\"", Some (infix_op_fix (None, "^", Some (string_cons_fix ("n't", []))))),
-  ("+a+b+c+", Some (infix_op_fix (Some (prefix_op_fix ("+", Some (identifier_fix "a"))), "+", Some (infix_op_fix (Some (identifier_fix "b"), "+", Some (suffix_op_fix (Some (identifier_fix "c"), "+")))))))
+  ("+a+b+c+", Some (infix_op_fix (Some (infix_op_fix (Some (prefix_op_fix ("+", Some (identifier_fix "a"))), "+", Some (identifier_fix "b"))), "+", Some (suffix_op_fix (Some (identifier_fix "c"), "+")))))
 ]
 
 let prefix_op_tests = [
