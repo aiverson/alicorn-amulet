@@ -67,6 +67,9 @@ let id_basic = id_basic_shy `seq` wsq
 let id_infix = c (s "&+-<@^" `seq` (s "&+-@>" `rep` 0)) `seq` wsq
 let id_prefix = c (s "#+-" `rep` 1) `seq` wsq
 let id_suffix_simple = c (s "+-" `rep` 1) `seq` wsq
+(* TODO: cancel id_basic capture to use it here *)
+(* TODO: more styles, more parsing, make proper id types *)
+let id_suffix_complex = c (p "." `seq` alpha_lower `seq` (alnum_ext `rep` 0))
 
 (* TODO: ideally this would recognize an id_basic, check if the capture is equal to str, and cancel the capture *)
 (* the problem is idk how to cancel the capture *)
@@ -171,11 +174,12 @@ let application =
   let fold (l, ps) = foldl (fun l p -> application_fix (l, p)) l ps
   in application_ops `act` fold
 
-(* TODO: advanced suffix operators *)
 let suffix_op_application =
   let left = partial_argument application
   (* hacky workaround to make sure suffix ops don't eat infix ops *)
-  let suffix_rep = collect_list ((id_suffix_simple `seq` neg term_ref) `rep` 0)
+  (* TODO: possibly causes a lot of backtracking, test this! *)
+  let suffix_op = (id_suffix_simple `seq` neg term_ref) `alt` id_suffix_complex
+  let suffix_rep = collect_list (suffix_op `rep` 0)
   let suffix_ops = collect_tuple (left `seq` suffix_rep)
   let fold (l, ops) = foldl (fun l op -> Some (suffix_op_fix (l, op))) l ops
   in suffix_ops `actx` fold

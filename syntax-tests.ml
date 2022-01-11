@@ -80,7 +80,9 @@ let prefix_op_tests = [
 
 let suffix_op_tests = [
   ("c++", Some (suffix_op_fix (Some (identifier_fix "c"), "++"))),
-  ("_ - +", Some (suffix_op_fix (Some (suffix_op_fix (None, "-")), "+")))
+  ("_ - +", Some (suffix_op_fix (Some (suffix_op_fix (None, "-")), "+"))),
+  ("click.click.click", Some (suffix_op_fix (Some (suffix_op_fix (Some (identifier_fix "click"), ".click")), ".click"))),
+  ("idk.about++.this++.chief", Some (suffix_op_fix (Some (suffix_op_fix (Some (suffix_op_fix (Some (suffix_op_fix (Some (suffix_op_fix (Some (identifier_fix "idk"), ".about")), "++")), ".this")), "++")), ".chief")))
 ]
 
 let abstraction_tests = [
