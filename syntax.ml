@@ -102,12 +102,13 @@ let prefix_op = id_prefix `act` identifier_prefix_fix
 let suffix_op = id_suffix `act` identifier_suffix_fix
 (* https://www.youtube.com/watch?v=T-BoDW1_9P4&t=11m3s *)
 let unzip xs = foldr (fun (l, r) (ls, rs) -> (l::ls, r::rs)) ([], []) xs
-let fixsuffix (h, rs) = let (args, parts) = unzip rs in (identifier_suffix_complex_fix (h, parts), args)
-let suffix_complex_op x = id_suffix_complex x `act` fixsuffix
+let fixsuffix f (h, rs) = let (args, parts) = unzip rs in (f (h, parts), args)
+let suffix_complex_op x = id_suffix_complex x `act` fixsuffix identifier_suffix_complex_fix
 
 let term_ref: parser1 pterm = v "term"
 let term_paren_shy = keysym "(" `seq` term_ref `seq` p ")"
 let term_paren = term_paren_shy `seq` wsq
+let term_definition = keysym "=" `seq` term_ref
 
 let abstraction_body =
   let args = keysym "(" `seq` comma_sep id_basic `seq` keysym ")"
@@ -119,35 +120,36 @@ let abstraction_sugar idtype = collect_tuple (id_basic `act` idtype `seq` abstra
  * it needs to handle possibly self-referencing cases like lists and tuples *)
 let define_simple =
   let name = id_basic `act` IdentifierBasic
-  let binding = keysym "=" `seq` term_ref
-  in collect_tuple (name `seq` binding)
+  in collect_tuple (name `seq` term_definition)
 let define_function = abstraction_sugar IdentifierBasic
 let define_infix =
   let left = id_basic
   let op = id_infix `act` IdentifierInfix
   let right = id_basic
-  let binding = keysym "=" `seq` term_ref
   let fixup (l, op, r, body) = (op, abstraction_fix ([l, r], body))
-  in collect_tuple (left `seq` op `seq` right `seq` binding) `act` fixup
+  in collect_tuple (left `seq` op `seq` right `seq` term_definition) `act` fixup
 let define_prefix =
   let op = id_prefix `act` IdentifierPrefix
   let right = id_basic
-  let binding = keysym "=" `seq` term_ref
   let fixup (op, r, body) = (op, abstraction_fix ([r], body))
-  in collect_tuple (op `seq` right `seq` binding) `act` fixup
+  in collect_tuple (op `seq` right `seq` term_definition) `act` fixup
 let define_suffix =
   let left = id_basic
   let op = id_suffix `act` IdentifierSuffix
-  let binding = keysym "=" `seq` term_ref
   let fixup (l, op, body) = (op, abstraction_fix ([l], body))
-  in collect_tuple (left `seq` op `seq` binding) `act` fixup
-(* TODO: complex suffix *)
+  in collect_tuple (left `seq` op `seq` term_definition) `act` fixup
+let define_suffix_complex =
+  let left = id_basic
+  let rights = id_suffix_complex id_basic `act` fixsuffix IdentifierSuffixComplex
+  let fixup (l, (op, rs), body) = (op, abstraction_fix (l::rs, body))
+  in collect_tuple (left `seq` rights `seq` term_definition) `act` fixup
 let define_pattern = (
         define_simple
   `alt` define_function
   `alt` define_infix
   `alt` define_prefix
   `alt` define_suffix
+  `alt` define_suffix_complex
 )
 
 let partial_argument t = (t `act` Some) `alt` (keysym "_" `cap` None)
