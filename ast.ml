@@ -12,7 +12,6 @@ type idstyle 'id =
 | IdentifierSuffix of 'id
 | IdentifierSuffixComplex of 'id * list 'id
 
-(* TODO: prettier operators *)
 instance show (idstyle string)
   let show = function
   | IdentifierBasic id -> id

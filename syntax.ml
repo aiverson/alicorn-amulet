@@ -28,7 +28,9 @@ let showterm = cata (function
   | ListCons ts -> "[" ^ sep_commas ts ^ "]"
   | RecordCons tts -> "{" ^ (map (fun (a, b) -> a ^ " = " ^ b) tts |> sep_commas) ^ "}"
   | Identifier name -> show name
+  (* TODO: prettier operators *)
   | Application (f, xs) -> f ^ "(" ^ sep_commas (map (`or_default` "_") xs) ^ ")"
+  (* TODO: prettier function definitions *)
   | Abstraction (ids, body) -> "(fun (" ^ sep_commas ids ^ ") = " ^ body ^ ")"
   | LetBinding (id, def, body) -> "let " ^ id ^ " = " ^ def ^ " in " ^ body
   | LetRecBinding (id, def, body) -> "let rec " ^ id ^ " = " ^ def ^ " in " ^ body
