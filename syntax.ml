@@ -18,19 +18,18 @@ let rec intercalate s ss = match ss with
 | Cons (a, Nil) -> a
 | Nil -> ""
 
+let sep_commas xs = intercalate ", " xs
+
 let matchingbracket = Map.from_list [("(|", "|)"), ("[|", "|]"), ("{|", "|}")]
 
 let showterm = cata (function
   | LiteralBool b -> show b
   | StringCons (s, ts) -> "\"" ^ s ^ (map (fun (t, s) -> "$("^t^")"^s) ts |> foldl (^) "") ^ "\""
-  | ListCons ts -> intercalate ", " ts
-  | RecordCons tts -> map (fun (a, b) -> a ^ " = " ^ b) tts |> intercalate ", "
-  | Identifier name -> name
-  | Application (f, xs) -> f ^ "(" ^ intercalate "," (map (function | Some x -> x | None -> "_") xs) ^")"
-  | InfixOp (a, op, b) -> "("^(a `or_default` "_")^" "^op^" "^(b `or_default` "_")^")"
-  | PrefixOp (op, b) -> "("^op^(b `or_default` "_")^")"
-  | SuffixOp (a, op) -> "("^(a `or_default` "_")^op^")"
-  | Abstraction (ids, body) -> "fun ("^ intercalate ", " ids ^ ") = " ^ body ^ ")"
+  | ListCons ts -> "[" ^ sep_commas ts ^ "]"
+  | RecordCons tts -> "{" ^ (map (fun (a, b) -> a ^ " = " ^ b) tts |> sep_commas) ^ "}"
+  | Identifier name -> show name
+  | Application (f, xs) -> f ^ "(" ^ sep_commas (map (`or_default` "_") xs) ^ ")"
+  | Abstraction (ids, body) -> "fun (" ^ sep_commas ids ^ ") = " ^ body ^ ")"
   | LetBinding (id, def, body) -> "let " ^ id ^ " = " ^ def ^ " in " ^ body
   | LetRecBinding (id, def, body) -> "let rec " ^ id ^ " = " ^ def ^ " in " ^ body
   | Conditional (cond, cons, alt) -> "if " ^ cond ^ " then " ^ cons ^ " else " ^ alt
@@ -38,15 +37,17 @@ let showterm = cata (function
 
 (* Fixed constructors *)
 (* TODO: metaprogram this away *)
+let identifier_basic_fix x = Fix (Identifier (IdentifierBasic x))
+let identifier_constructor_fix x = Fix (Identifier (IdentifierConstructor x))
+let identifier_infix_fix x = Fix (Identifier (IdentifierInfix x))
+let identifier_prefix_fix x = Fix (Identifier (IdentifierPrefix x))
+let identifier_suffix_fix x = Fix (Identifier (IdentifierSuffix x))
+let identifier_suffix_complex_fix x = Fix (Identifier (IdentifierSuffixComplex x))
 let literal_bool_fix x = Fix (LiteralBool x)
 let string_cons_fix x = Fix (StringCons x)
 let list_cons_fix x = Fix (ListCons x)
 let record_cons_fix x = Fix (RecordCons x)
-let identifier_fix x = Fix (Identifier x)
 let application_fix x = Fix (Application x)
-let infix_op_fix x = Fix (InfixOp x)
-let prefix_op_fix x = Fix (PrefixOp x)
-let suffix_op_fix x = Fix (SuffixOp x)
 let abstraction_fix x = Fix (Abstraction x)
 let let_binding_fix x = Fix (LetBinding x)
 let let_rec_binding_fix x = Fix (LetRecBinding x)
@@ -66,9 +67,8 @@ let id_basic = id_basic_shy `seq` wsq
 (* TODO: different infix precedences *)
 let id_infix = c (s "&+-<@^" `seq` (s "&+-@>" `rep` 0)) `seq` wsq
 let id_prefix = c (s "#+-" `rep` 1) `seq` wsq
-let id_suffix_simple = c (s "+-" `rep` 1) `seq` wsq
+let id_suffix = c (s "+-" `rep` 1) `seq` wsq
 (* TODO: cancel id_basic capture to use it here *)
-(* TODO: more styles, more parsing, make proper id types *)
 let id_suffix_complex = c (p "." `seq` alpha_lower `seq` (alnum_ext `rep` 0))
 
 (* TODO: ideally this would recognize an id_basic, check if the capture is equal to str, and cancel the capture *)
@@ -85,8 +85,8 @@ let comma_sep pat = collect_sep pat (keysym ",")
 (* (not strictly true, Open has Ideas) *)
 let parse_bool = function | "true" -> Some true | "false" -> Some false | _ -> None
 let literal_bool: parser1 pterm = id_basic `actx` parse_bool `act` literal_bool_fix
-let identifier_shy = id_basic_shy `act` identifier_fix
-let identifier = id_basic `act` identifier_fix
+let identifier_shy = id_basic_shy `act` identifier_basic_fix
+let identifier = id_basic `act` identifier_basic_fix
 
 let term_ref: parser1 pterm = v "term"
 let term_paren_shy = keysym "(" `seq` term_ref `seq` p ")"
@@ -128,7 +128,7 @@ let list_cons = keysym "[" `seq` comma_sep term_ref `seq` keysym "]" `act` list_
 let record_cons =
   let record_key = identifier `alt` string_cons `alt` term_paren
   let record_binding = collect_tuple (
-    (record_key `seq` keysym "=" `seq` term_ref) `alt` abstraction_sugar identifier_fix
+    (record_key `seq` keysym "=" `seq` term_ref) `alt` abstraction_sugar identifier_basic_fix
   )
   in keysym "{" `seq` comma_sep record_binding `seq` keysym "}" `act` record_cons_fix
 
@@ -178,27 +178,28 @@ let suffix_op_application =
   let left = partial_argument application
   (* hacky workaround to make sure suffix ops don't eat infix ops *)
   (* TODO: possibly causes a lot of backtracking, test this! *)
-  let suffix_op = (id_suffix_simple `seq` neg term_ref) `alt` id_suffix_complex
+  (* TODO: more complex suffix identifiers *)
+  let suffix_op = (id_suffix `act` identifier_suffix_fix `seq` neg term_ref) `alt` (id_suffix_complex `act` (fun x -> identifier_suffix_complex_fix (x, [])))
   let suffix_rep = collect_list (suffix_op `rep` 0)
   let suffix_ops = collect_tuple (left `seq` suffix_rep)
-  let fold (l, ops) = foldl (fun l op -> Some (suffix_op_fix (l, op))) l ops
+  let fold (l, ops) = foldl (fun l op -> Some (application_fix (op, [l]))) l ops
   in suffix_ops `actx` fold
 
 (* prefix ops aren't left recursive, but putting
  * them here is necessary for correct precedence *)
 let prefix_op_application =
   let right = partial_argument suffix_op_application
-  let prefix_rep = collect_list (id_prefix `rep` 0)
+  let prefix_rep = collect_list (id_prefix `act` identifier_prefix_fix `rep` 0)
   let prefix_ops = collect_tuple (prefix_rep `seq` right)
-  let fold (ops, r) = foldr (fun op r -> Some (prefix_op_fix (op, r))) r ops
+  let fold (ops, r) = foldr (fun op r -> Some (application_fix (op, [r]))) r ops
   in prefix_ops `actx` fold
 
 let infix_op_application =
   let left = partial_argument prefix_op_application
-  let right = collect_tuple (id_infix `seq` left)
+  let right = collect_tuple (id_infix `act` identifier_infix_fix `seq` left)
   let right_rep = collect_list (right `rep` 0)
   let infix_ops = collect_tuple (left `seq` right_rep)
-  let fold (l, rs) = foldl (fun l (op, r) -> Some (infix_op_fix (l, op, r))) l rs
+  let fold (l, rs) = foldl (fun l (op, r) -> Some (application_fix (op, [l, r]))) l rs
   in infix_ops `actx` fold
 
 let term = infix_op_application

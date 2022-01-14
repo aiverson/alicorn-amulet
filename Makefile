@@ -1,4 +1,4 @@
-syntax-tests.lua: syntax-tests.ml syntax.ml # add other deps?
+syntax-tests.lua: syntax-tests.ml syntax.ml ast.ml # add other deps?
 	amc compile syntax-tests.ml -o syntax-tests.lua
 
 clean:

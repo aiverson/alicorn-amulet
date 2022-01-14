@@ -4,18 +4,35 @@ open import "amulet/base.ml"
 open import "amulet/category.ml"
 open import "amulet/option.ml"
 
+type idstyle 'id =
+| IdentifierBasic of 'id
+| IdentifierConstructor of 'id
+| IdentifierInfix of 'id
+| IdentifierPrefix of 'id
+| IdentifierSuffix of 'id
+| IdentifierSuffixComplex of 'id * list 'id
+
+(* TODO: prettier operators *)
+instance show (idstyle string)
+  let show = function
+  | IdentifierBasic id -> id
+  | IdentifierConstructor id -> id
+  | IdentifierInfix id -> "(_" ^ id ^ "_)"
+  | IdentifierPrefix id -> "(" ^ id ^ "_)"
+  | IdentifierSuffix id -> "(_" ^ id ^ ")"
+  | IdentifierSuffixComplex (id, ids) ->
+    let rec foldl f a = function | Nil -> a | Cons (x, xs) -> foldl f (f a x) xs
+    in "(_" ^ foldl (fun a x -> a ^ "_" ^ x) id ids ^ ")"
 
 type term 'id 'term =
 | LiteralBool of bool
 | StringCons of string * list ('term * string) (* strings with splices *)
 | ListCons of list 'term
 | RecordCons of list ('term * 'term)
-| Identifier of 'id
+| Identifier of idstyle 'id
 | Application of 'term * list (option 'term) (* single argument positional application, save named and optional arguments for later *)
 (* | BracketOp of 'id *)
-| InfixOp of option 'term * 'id * option 'term
-| PrefixOp of 'id * option 'term
-| SuffixOp of option 'term * 'id
+(* TODO: pattern-matching type for arguments and let binding *)
 | Abstraction of list 'id * 'term
 | LetBinding of 'id * 'term * 'term
 | LetRecBinding of 'id * 'term * 'term
@@ -32,9 +49,6 @@ instance functor (term 'id)
   | Identifier i -> Identifier i
   | Application (t, ts) -> Application (f t, (f <$>) <$> ts)
   (* | BracketOp i -> BracketOp i *)
-  | InfixOp (a, i, b) -> InfixOp (f <$> a, i, f <$> b)
-  | PrefixOp (i, b)   -> PrefixOp (i, f <$> b)
-  | SuffixOp (a, i)   -> SuffixOp (f <$> a, i)
   | Abstraction (v, t) -> Abstraction (v, f t)
   | LetBinding (v, t, r) -> LetBinding (v, f t, f r)
   | LetRecBinding (v, t, r) -> LetRecBinding (v, f t, f r)
