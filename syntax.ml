@@ -69,6 +69,7 @@ let id_infix = c (s "&+-<@^" `seq` (s "&+-@>" `rep` 0)) `seq` wsq
 let id_prefix = c (s "#+-" `rep` 1) `seq` wsq
 let id_suffix = c (s "+-" `rep` 1) `seq` wsq
 (* TODO: cancel id_basic capture to use it here *)
+(* TODO: more complex suffix identifiers *)
 let id_suffix_complex = c (p "." `seq` alpha_lower `seq` (alnum_ext `rep` 0))
 
 (* TODO: ideally this would recognize an id_basic, check if the capture is equal to str, and cancel the capture *)
@@ -87,6 +88,11 @@ let parse_bool = function | "true" -> Some true | "false" -> Some false | _ -> N
 let literal_bool: parser1 pterm = id_basic `actx` parse_bool `act` literal_bool_fix
 let identifier_shy = id_basic_shy `act` identifier_basic_fix
 let identifier = id_basic `act` identifier_basic_fix
+
+let infix_op = id_infix `act` identifier_infix_fix
+let prefix_op = id_prefix `act` identifier_prefix_fix
+let suffix_op = id_suffix `act` identifier_suffix_fix
+let suffix_complex_op = id_suffix_complex `act` (fun x -> identifier_suffix_complex_fix (x, []))
 
 let term_ref: parser1 pterm = v "term"
 let term_paren_shy = keysym "(" `seq` term_ref `seq` p ")"
@@ -178,8 +184,7 @@ let suffix_op_application =
   let left = partial_argument application
   (* hacky workaround to make sure suffix ops don't eat infix ops *)
   (* TODO: possibly causes a lot of backtracking, test this! *)
-  (* TODO: more complex suffix identifiers *)
-  let suffix_op = (id_suffix `act` identifier_suffix_fix `seq` neg term_ref) `alt` (id_suffix_complex `act` (fun x -> identifier_suffix_complex_fix (x, [])))
+  let suffix_op = (suffix_op `seq` neg term_ref) `alt` suffix_complex_op
   let suffix_rep = collect_list (suffix_op `rep` 0)
   let suffix_ops = collect_tuple (left `seq` suffix_rep)
   let fold (l, ops) = foldl (fun l op -> Some (application_fix (op, [l]))) l ops
@@ -189,14 +194,14 @@ let suffix_op_application =
  * them here is necessary for correct precedence *)
 let prefix_op_application =
   let right = partial_argument suffix_op_application
-  let prefix_rep = collect_list (id_prefix `act` identifier_prefix_fix `rep` 0)
+  let prefix_rep = collect_list (prefix_op `rep` 0)
   let prefix_ops = collect_tuple (prefix_rep `seq` right)
   let fold (ops, r) = foldr (fun op r -> Some (application_fix (op, [r]))) r ops
   in prefix_ops `actx` fold
 
 let infix_op_application =
   let left = partial_argument prefix_op_application
-  let right = collect_tuple (id_infix `act` identifier_infix_fix `seq` left)
+  let right = collect_tuple (infix_op `seq` left)
   let right_rep = collect_list (right `rep` 0)
   let infix_ops = collect_tuple (left `seq` right_rep)
   let fold (l, rs) = foldl (fun l (op, r) -> Some (application_fix (op, [l, r]))) l rs
