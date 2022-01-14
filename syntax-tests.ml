@@ -23,10 +23,6 @@ let identifier_tests () = [
   ("foldl", Some (identifier_basic_fix "foldl")),
   ("this_is_a_s1lly_but_v4l1d_identifier", Some (identifier_basic_fix "this_is_a_s1lly_but_v4l1d_identifier")),
 
-  ("_", None),
-  ("++", None),
-  ("_internal", None),
-
   ("x___", Some (identifier_basic_fix "x___")),
   ("iCons", Some (identifier_basic_fix "iCons")),
   ("e", Some (identifier_basic_fix "e")),
@@ -119,6 +115,8 @@ let hole_tests () = [
 
 let misc_tests () = [
   ("_", None),
+  ("_internal", None),
+  ("++", None),
   ("a + + b", None) (* This is ambiguous, and should be banned *)
 ]
 
