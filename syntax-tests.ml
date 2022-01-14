@@ -61,31 +61,30 @@ let application_tests = [
   ("foo(a, _, c)", Some (application_fix (identifier_basic_fix "foo", [Some (identifier_basic_fix "a"), None, Some (identifier_basic_fix "c")]))),
   ("foo(a)(_)(c)", Some (application_fix ((application_fix ((application_fix (identifier_basic_fix "foo", [Some (identifier_basic_fix "a")])), [None])), [Some (identifier_basic_fix "c")])))
 ]
-(* TODO: fix these *)
-(*
+
 let infix_op_tests = [
-  ("foo + bar", Some (infix_op_fix (Some (identifier_basic_fix "foo"), "+", Some (identifier_basic_fix "bar")))),
-  ("one-to-one", Some (infix_op_fix (Some (infix_op_fix (Some (identifier_basic_fix "one"), "-", Some (identifier_basic_fix "to"))), "-", Some (identifier_basic_fix "one")))),
-  ("_ ^ \"n't\"", Some (infix_op_fix (None, "^", Some (string_cons_fix ("n't", []))))),
-  ("+a+b+c+", Some (infix_op_fix (Some (infix_op_fix (Some (prefix_op_fix ("+", Some (identifier_basic_fix "a"))), "+", Some (identifier_basic_fix "b"))), "+", Some (suffix_op_fix (Some (identifier_basic_fix "c"), "+")))))
+  ("foo + bar", Some (application_fix (identifier_infix_fix "+", [Some (identifier_basic_fix "foo"), Some (identifier_basic_fix "bar")]))),
+  ("one-to-one", Some (application_fix (identifier_infix_fix "-", [Some (application_fix (identifier_infix_fix "-", [Some (identifier_basic_fix "one"), Some (identifier_basic_fix "to")])), Some (identifier_basic_fix "one")]))),
+  ("_ ^ \"n't\"", Some (application_fix (identifier_infix_fix "^", [None, Some (string_cons_fix ("n't", []))]))),
+  ("+a+b+c+", Some (application_fix (identifier_infix_fix "+", [Some (application_fix (identifier_infix_fix "+", [Some (application_fix (identifier_prefix_fix "+", [Some (identifier_basic_fix "a")])), Some (identifier_basic_fix "b")])), Some (application_fix (identifier_suffix_fix "+", [Some (identifier_basic_fix "c")]))])))
 ]
 
 let prefix_op_tests = [
-  ("#hashtag", Some (prefix_op_fix ("#", Some (identifier_basic_fix "hashtag")))),
-  ("-#foo", Some (prefix_op_fix ("-#", Some (identifier_basic_fix "foo")))),
-  ("-(#bar)", Some (prefix_op_fix ("-", Some (prefix_op_fix ("#", Some (identifier_basic_fix "bar")))))),
-  ("- #bar", Some (prefix_op_fix ("-", Some (prefix_op_fix ("#", Some (identifier_basic_fix "bar")))))),
-  ("-_", Some (prefix_op_fix ("-", None))),
-  ("-+- sparkle -+-", Some (prefix_op_fix ("-+-", Some (suffix_op_fix (Some (identifier_basic_fix "sparkle"), "-+-")))))
+  ("#hashtag", Some (application_fix (identifier_prefix_fix "#", [Some (identifier_basic_fix "hashtag")]))),
+  ("-#foo", Some (application_fix (identifier_prefix_fix "-#", [Some (identifier_basic_fix "foo")]))),
+  ("-(#bar)", Some (application_fix (identifier_prefix_fix "-", [Some (application_fix (identifier_prefix_fix "#", [Some (identifier_basic_fix "bar")]))]))),
+  ("- #bar", Some (application_fix (identifier_prefix_fix "-", [Some (application_fix (identifier_prefix_fix "#", [Some (identifier_basic_fix "bar")]))]))),
+  ("-_", Some (application_fix (identifier_prefix_fix "-", [None]))),
+  ("-+- sparkle -+-", Some (application_fix (identifier_prefix_fix "-+-", [Some (application_fix (identifier_suffix_fix "-+-", [Some (identifier_basic_fix "sparkle")]))])))
 ]
 
 let suffix_op_tests = [
-  ("c++", Some (suffix_op_fix (Some (identifier_basic_fix "c"), "++"))),
-  ("_ - +", Some (suffix_op_fix (Some (suffix_op_fix (None, "-")), "+"))),
-  ("click.click.click", Some (suffix_op_fix (Some (suffix_op_fix (Some (identifier_basic_fix "click"), ".click")), ".click"))),
-  ("idk.about++.this++.chief", Some (suffix_op_fix (Some (suffix_op_fix (Some (suffix_op_fix (Some (suffix_op_fix (Some (suffix_op_fix (Some (identifier_basic_fix "idk"), ".about")), "++")), ".this")), "++")), ".chief")))
+  ("c++", Some (application_fix (identifier_suffix_fix "++", [Some (identifier_basic_fix "c")]))),
+  ("_ - +", Some (application_fix (identifier_suffix_fix "+", [Some (application_fix (identifier_suffix_fix "-", [None]))]))),
+  ("click.click.click", Some (application_fix (identifier_suffix_complex_fix (".click", []), [Some (application_fix (identifier_suffix_complex_fix (".click", []), [Some (identifier_basic_fix "click")]))]))),
+  ("idk.about++.this++.chief", Some (application_fix (identifier_suffix_complex_fix (".chief", []), [Some (application_fix (identifier_suffix_fix "++", [Some (application_fix (identifier_suffix_complex_fix (".this", []), [Some (application_fix (identifier_suffix_fix "++", [Some (application_fix (identifier_suffix_complex_fix (".about", []), [Some (identifier_basic_fix "idk")]))]))]))]))])))
 ]
-*)
+
 let abstraction_tests = [
   ("fun(a, b, c) = body", Some (abstraction_fix (["a", "b", "c"], identifier_basic_fix "body"))),
   ("fun (a ,b, c )=body", Some (abstraction_fix (["a", "b", "c"], identifier_basic_fix "body")))
