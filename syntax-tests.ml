@@ -83,7 +83,9 @@ let suffix_op_tests () = [
   ("c++", Some (application_fix (identifier_suffix_fix "++", [Some (identifier_basic_fix "c")]))),
   ("_ - +", Some (application_fix (identifier_suffix_fix "+", [Some (application_fix (identifier_suffix_fix "-", [None]))]))),
   ("click.click.click", Some (application_fix (identifier_suffix_complex_fix (".click", []), [Some (application_fix (identifier_suffix_complex_fix (".click", []), [Some (identifier_basic_fix "click")]))]))),
-  ("idk.about++.this++.chief", Some (application_fix (identifier_suffix_complex_fix (".chief", []), [Some (application_fix (identifier_suffix_fix "++", [Some (application_fix (identifier_suffix_complex_fix (".this", []), [Some (application_fix (identifier_suffix_fix "++", [Some (application_fix (identifier_suffix_complex_fix (".about", []), [Some (identifier_basic_fix "idk")]))]))]))]))])))
+  ("idk.about++.this++.chief", Some (application_fix (identifier_suffix_complex_fix (".chief", []), [Some (application_fix (identifier_suffix_fix "++", [Some (application_fix (identifier_suffix_complex_fix (".this", []), [Some (application_fix (identifier_suffix_fix "++", [Some (application_fix (identifier_suffix_complex_fix (".about", []), [Some (identifier_basic_fix "idk")]))]))]))]))]))),
+  ("over.(engineer)", Some (application_fix (identifier_suffix_complex_fix (".(", [")"]), [Some (identifier_basic_fix "over"), Some (identifier_basic_fix "engineer")]))),
+  ("_.(_)", Some (application_fix (identifier_suffix_complex_fix (".(", [")"]), [None, None])))
 ]
 
 let abstraction_tests () = [

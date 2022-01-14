@@ -64,16 +64,6 @@ let alnum = alpha `alt` num
 let alnum_ext = alnum `alt` p "_"
 let eof = neg star
 
-let id_basic_shy = c (alpha_lower `seq` (alnum_ext `rep` 0))
-let id_basic = id_basic_shy `seq` wsq
-(* TODO: different infix precedences *)
-let id_infix = c (s "&+-<@^" `seq` (s "&+-@>" `rep` 0)) `seq` wsq
-let id_prefix = c (s "#+-" `rep` 1) `seq` wsq
-let id_suffix = c (s "+-" `rep` 1) `seq` wsq
-(* TODO: cancel id_basic capture to use it here *)
-(* TODO: more complex suffix identifiers *)
-let id_suffix_complex = c (p "." `seq` alpha_lower `seq` (alnum_ext `rep` 0))
-
 (* TODO: ideally this would recognize an id_basic, check if the capture is equal to str, and cancel the capture *)
 (* the problem is idk how to cancel the capture *)
 let keyword str = p str `seq` neg alnum_ext `seq` wsq
@@ -82,6 +72,20 @@ let cap pat res = pat `seq` cc res
 let excl pat unless = neg unless `seq` pat
 let collect_sep pat sep = collect_list (sepseq pat sep)
 let comma_sep pat = collect_sep pat (keysym ",")
+
+let id_basic_shy = c (alpha_lower `seq` (alnum_ext `rep` 0))
+let id_basic = id_basic_shy `seq` wsq
+(* TODO: different infix precedences *)
+let id_infix = c (s "&+-<@^" `seq` (s "&+-@>" `rep` 0)) `seq` wsq
+let id_prefix = c (s "#+-" `rep` 1) `seq` wsq
+let id_suffix = c (s "+-" `rep` 1) `seq` wsq
+(* x *MUST* capture something, even if it's something dumb like cc () *)
+(* otherwise types don't line up *)
+let id_suffix_complex (x: parser (parservals 'a emptyparservals)) =
+  (* TODO: cancel id_basic capture to use it here *)
+  let variant1 = collect_tuple (c (p "." `seq` alpha_lower `seq` (alnum_ext `rep` 0)) `cap` [])
+  let variant2 = collect_tuple (c (p ".(") `seq` wsq `seq` collect_list (collect_tuple (x `seq` c (p ")"))))
+  in variant1 `alt` variant2 `seq` wsq
 
 (* TODO: bools are just type bool = True | False *)
 (* this means conditionals are just pattern matches on bool *)
@@ -94,7 +98,10 @@ let identifier = id_basic `act` identifier_basic_fix
 let infix_op = id_infix `act` identifier_infix_fix
 let prefix_op = id_prefix `act` identifier_prefix_fix
 let suffix_op = id_suffix `act` identifier_suffix_fix
-let suffix_complex_op = id_suffix_complex `act` (fun x -> identifier_suffix_complex_fix (x, []))
+(* https://www.youtube.com/watch?v=T-BoDW1_9P4&t=11m3s *)
+let unzip xs = foldr (fun (l, r) (ls, rs) -> (l::ls, r::rs)) ([], []) xs
+let fixsuffix (h, rs) = let (args, parts) = unzip rs in (identifier_suffix_complex_fix (h, parts), args)
+let suffix_complex_op x = id_suffix_complex x `act` fixsuffix
 
 let term_ref: parser1 pterm = v "term"
 let term_paren_shy = keysym "(" `seq` term_ref `seq` p ")"
@@ -186,10 +193,12 @@ let suffix_op_application =
   let left = partial_argument application
   (* hacky workaround to make sure suffix ops don't eat infix ops *)
   (* TODO: possibly causes a lot of backtracking, test this! *)
-  let suffix_op = (suffix_op `seq` neg term_ref) `alt` suffix_complex_op
-  let suffix_rep = collect_list (suffix_op `rep` 0)
+  let suffix1 = suffix_op `seq` neg term_ref `act` (fun x -> (x, []))
+  let suffix2 = suffix_complex_op (partial_argument term_ref)
+  let suffix = suffix1 `alt` suffix2
+  let suffix_rep = collect_list (suffix `rep` 0)
   let suffix_ops = collect_tuple (left `seq` suffix_rep)
-  let fold (l, ops) = foldl (fun l op -> Some (application_fix (op, [l]))) l ops
+  let fold (l, ops) = foldl (fun l (op, args) -> Some (application_fix (op, l::args))) l ops
   in suffix_ops `actx` fold
 
 (* prefix ops aren't left recursive, but putting
