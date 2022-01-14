@@ -29,7 +29,7 @@ let showterm = cata (function
   | RecordCons tts -> "{" ^ (map (fun (a, b) -> a ^ " = " ^ b) tts |> sep_commas) ^ "}"
   | Identifier name -> show name
   | Application (f, xs) -> f ^ "(" ^ sep_commas (map (`or_default` "_") xs) ^ ")"
-  | Abstraction (ids, body) -> "fun (" ^ sep_commas ids ^ ") = " ^ body ^ ")"
+  | Abstraction (ids, body) -> "(fun (" ^ sep_commas ids ^ ") = " ^ body ^ ")"
   | LetBinding (id, def, body) -> "let " ^ id ^ " = " ^ def ^ " in " ^ body
   | LetRecBinding (id, def, body) -> "let rec " ^ id ^ " = " ^ def ^ " in " ^ body
   | Conditional (cond, cons, alt) -> "if " ^ cond ^ " then " ^ cons ^ " else " ^ alt
