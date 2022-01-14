@@ -1,4 +1,5 @@
 open import "prelude.ml"
+open import "./arg.ml"
 open import "./parsing/lpeg.ml"
 open import "./syntax.ml"
 
@@ -114,6 +115,8 @@ let misc_tests = [
 
 (* TODO: other tests (depends on the parsers) *)
 
+let show_all = any ("-a" ==) (to_list arg)
+
 let parser_test parser (test, expected) =
   let got = parse (parser `seq` eof) test
   let dgot = parse parser test
@@ -124,7 +127,7 @@ let parser_test parser (test, expected) =
   let sdgot = showterm <$> dgot
   in (sexp == sgot, test, sexp, sgot, sdgot)
 
-let filter_failing results = filter (fun (success, _) -> not success) results
+let filter_failing results = if show_all then results else filter (fun (success, _) -> not success) results
 
 let show_result (success, test, exp, got, debug) =
   "Success : " ^ show success ^ "\n"
