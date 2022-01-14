@@ -33,8 +33,8 @@ type term 'id 'term =
 (* | BracketOp of 'id *)
 (* TODO: pattern-matching type for arguments and let binding *)
 | Abstraction of list 'id * 'term
-| LetBinding of 'id * 'term * 'term
-| LetRecBinding of 'id * 'term * 'term
+| LetBinding of idstyle 'id * 'term * 'term
+| LetRecBinding of idstyle 'id * 'term * 'term
 (* | AsBinding of 'term * 'id * 'typ *)
 | Conditional of 'term * 'term * 'term
 | Hole of 'id

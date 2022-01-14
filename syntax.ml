@@ -32,13 +32,14 @@ let showterm = cata (function
   | Application (f, xs) -> f ^ "(" ^ sep_commas (map (`or_default` "_") xs) ^ ")"
   (* TODO: prettier function definitions *)
   | Abstraction (ids, body) -> "(fun (" ^ sep_commas ids ^ ") = " ^ body ^ ")"
-  | LetBinding (id, def, body) -> "let " ^ id ^ " = " ^ def ^ " in " ^ body
-  | LetRecBinding (id, def, body) -> "let rec " ^ id ^ " = " ^ def ^ " in " ^ body
+  | LetBinding (id, def, body) -> "let " ^ show id ^ " = " ^ def ^ " in " ^ body
+  | LetRecBinding (id, def, body) -> "let rec " ^ show id ^ " = " ^ def ^ " in " ^ body
   | Conditional (cond, cons, alt) -> "if " ^ cond ^ " then " ^ cons ^ " else " ^ alt
   | Hole id -> "$?"^id)
 
 (* Fixed constructors *)
 (* TODO: metaprogram this away *)
+let identifier_fix x = Fix (Identifier x)
 let identifier_basic_fix x = Fix (Identifier (IdentifierBasic x))
 let identifier_constructor_fix x = Fix (Identifier (IdentifierConstructor x))
 let identifier_infix_fix x = Fix (Identifier (IdentifierInfix x))
@@ -64,6 +65,13 @@ let alnum = alpha `alt` num
 let alnum_ext = alnum `alt` p "_"
 let eof = neg star
 
+let id_basic_shy = c (alpha_lower `seq` (alnum_ext `rep` 0))
+let id_basic = id_basic_shy `seq` wsq
+(* TODO: different infix precedences *)
+let id_infix = c (s "&+-<@^" `seq` (s "&+-@>" `rep` 0)) `seq` wsq
+let id_prefix = c (s "#+-" `rep` 1) `seq` wsq
+let id_suffix = c (s "+-" `rep` 1) `seq` wsq
+
 (* TODO: ideally this would recognize an id_basic, check if the capture is equal to str, and cancel the capture *)
 (* the problem is idk how to cancel the capture *)
 let keyword str = p str `seq` neg alnum_ext `seq` wsq
@@ -73,12 +81,6 @@ let excl pat unless = neg unless `seq` pat
 let collect_sep pat sep = collect_list (sepseq pat sep)
 let comma_sep pat = collect_sep pat (keysym ",")
 
-let id_basic_shy = c (alpha_lower `seq` (alnum_ext `rep` 0))
-let id_basic = id_basic_shy `seq` wsq
-(* TODO: different infix precedences *)
-let id_infix = c (s "&+-<@^" `seq` (s "&+-@>" `rep` 0)) `seq` wsq
-let id_prefix = c (s "#+-" `rep` 1) `seq` wsq
-let id_suffix = c (s "+-" `rep` 1) `seq` wsq
 (* x *MUST* capture something, even if it's something dumb like cc () *)
 (* otherwise types don't line up *)
 let id_suffix_complex (x: parser (parservals 'a emptyparservals)) =
@@ -108,16 +110,45 @@ let term_paren_shy = keysym "(" `seq` term_ref `seq` p ")"
 let term_paren = term_paren_shy `seq` wsq
 
 let abstraction_body =
-  collect_tuple (
-          keysym "(" `seq` comma_sep id_basic `seq` keysym ")"
-    `seq` keysym "=" `seq` term_ref
-  ) `act` abstraction_fix
+  let args = keysym "(" `seq` comma_sep id_basic `seq` keysym ")"
+  let body = keysym "=" `seq` term_ref
+  in collect_tuple (args `seq` body) `act` abstraction_fix
+let abstraction_sugar idtype = collect_tuple (id_basic `act` idtype `seq` abstraction_body)
+
 (* TODO: this is not enough, we need a whole pattern match identifier type
- * it needs to handle identifiers, functions, operators,
- * and possibly more possibly self-referencing cases
- * this will also allow operators to be represented as function application
- * with operator-type identifiers *)
-let abstraction_sugar idtype = id_basic `act` idtype `seq` abstraction_body
+ * it needs to handle possibly self-referencing cases like lists and tuples *)
+let define_simple =
+  let name = id_basic `act` IdentifierBasic
+  let binding = keysym "=" `seq` term_ref
+  in collect_tuple (name `seq` binding)
+let define_function = abstraction_sugar IdentifierBasic
+let define_infix =
+  let left = id_basic
+  let op = id_infix `act` IdentifierInfix
+  let right = id_basic
+  let binding = keysym "=" `seq` term_ref
+  let fixup (l, op, r, body) = (op, abstraction_fix ([l, r], body))
+  in collect_tuple (left `seq` op `seq` right `seq` binding) `act` fixup
+let define_prefix =
+  let op = id_prefix `act` IdentifierPrefix
+  let right = id_basic
+  let binding = keysym "=" `seq` term_ref
+  let fixup (op, r, body) = (op, abstraction_fix ([r], body))
+  in collect_tuple (op `seq` right `seq` binding) `act` fixup
+let define_suffix =
+  let left = id_basic
+  let op = id_suffix `act` IdentifierSuffix
+  let binding = keysym "=" `seq` term_ref
+  let fixup (l, op, body) = (op, abstraction_fix ([l], body))
+  in collect_tuple (left `seq` op `seq` binding) `act` fixup
+(* TODO: complex suffix *)
+let define_pattern = (
+        define_simple
+  `alt` define_function
+  `alt` define_infix
+  `alt` define_prefix
+  `alt` define_suffix
+)
 
 let partial_argument t = (t `act` Some) `alt` (keysym "_" `cap` None)
 
@@ -141,18 +172,17 @@ let string_cons =
 let list_cons = keysym "[" `seq` comma_sep term_ref `seq` keysym "]" `act` list_cons_fix
 
 let record_cons =
-  let record_key = identifier `alt` string_cons `alt` term_paren
-  let record_binding = collect_tuple (
-    (record_key `seq` keysym "=" `seq` term_ref) `alt` abstraction_sugar identifier_basic_fix
-  )
+  let record_key_other = string_cons `alt` term_paren
+  let record_binding =
+    (define_pattern `act` (fun (l, r) -> (identifier_fix l, r)))
+    `alt` collect_tuple (record_key_other `seq` keysym "=" `seq` term_ref)
   in keysym "{" `seq` comma_sep record_binding `seq` keysym "}" `act` record_cons_fix
 
 let abstraction = keyword "fun" `seq` abstraction_body
 
-(* TODO: operator bindings *)
 let let_body =
-  let binding = (id_basic `seq` keysym "=" `seq` term_ref) `alt` abstraction_sugar id
-  in collect_tuple (binding `seq` keyword "in" `seq` term_ref)
+  let fixup ((a, b), c) = (a, b, c)
+  in collect_tuple (define_pattern `seq` keyword "in" `seq` term_ref) `act` fixup
 
 let let_binding = keyword "let" `seq` let_body `act` let_binding_fix
 
