@@ -54,7 +54,7 @@ let record_tests () = [
   ("{ a=b, c = d, e= f }", Some (record_cons_fix [(identifier_basic_fix "a", identifier_basic_fix "b"), (identifier_basic_fix "c", identifier_basic_fix "d"), (identifier_basic_fix "e", identifier_basic_fix "f")])),
 
   ("{ foo(a, b, c) = bar, \"ponies\" = \"cute\", (flopnax) = ropjar }", Some (record_cons_fix [(identifier_basic_fix "foo", abstraction_fix (["a", "b", "c"], identifier_basic_fix "bar")), (string_cons_fix ("ponies", []), string_cons_fix ("cute", [])), (identifier_basic_fix "flopnax", identifier_basic_fix "ropjar")])),
-  ("{ a * b = c, #x = x ^ x, l.(i) = i }", Some (record_cons_fix [(identifier_infix_fix "*", abstraction_fix (["a", "b"], identifier_basic_fix "c")), (identifier_prefix_fix "#", abstraction_fix (["x"], application_fix (identifier_infix_fix "^", [Some (identifier_basic_fix "x"), Some (identifier_basic_fix "x")]))), (identifier_suffix_complex_fix (".(", [")"]), abstraction_fix (["l", "i"], identifier_basic_fix "i"))]))
+  ("{ a + b = c, #x = x ^ x, l.(i) = i }", Some (record_cons_fix [(identifier_infix_fix "+", abstraction_fix (["a", "b"], identifier_basic_fix "c")), (identifier_prefix_fix "#", abstraction_fix (["x"], application_fix (identifier_infix_fix "^", [Some (identifier_basic_fix "x"), Some (identifier_basic_fix "x")]))), (identifier_suffix_complex_fix (".(", [")"]), abstraction_fix (["l", "i"], identifier_basic_fix "i"))]))
 ]
 
 let application_tests () = [
