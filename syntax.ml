@@ -162,6 +162,9 @@ let define_pattern = define_pattern ()
 
 let term_key () =
   let string_cons =
+    (* TODO: newlines (as in actual 0A byte in the input) probably not allowed in strings *)
+    (* TODO: other kinds of strings *)
+    let regular_chars = c (star `excl` s "\"$\\")
     let escape_chars =
       foldl1 alt ((fun (s, r) -> lit s r) <$> [
         ("\\t", "\t"),
@@ -169,8 +172,6 @@ let term_key () =
         ("\\\"", "\""),
         ("\\\\", "\\")
       ])
-    (* TODO: newlines (as in actual 0A byte in the input) probably not allowed in strings *)
-    let regular_chars = c (star `excl` s "\"$\\")
     (* This looks really weird because escape_chars provides a custom capture,
      * which can't be handled with a simple c (bad things happen) *)
     let string_frag = collect_list (regular_chars `alt` escape_chars `rep` 0) `act` catstr
@@ -192,9 +193,7 @@ let term_key () =
   let let_body =
     let fixup ((a, b), c) = (a, b, c)
     in collect_tuple (define_pattern `seq` keyword "in" `seq` term_ref) `act` fixup
-
   let let_binding = keyword "let" `seq` let_body `act` let_binding_fix
-
   let let_rec_binding = keyword "let" `seq` keyword "rec" `seq` let_body `act` let_rec_binding_fix
 
   (* TODO: id optional *)
@@ -219,10 +218,11 @@ let term_key = term_key ()
  * in a way where each parser can collect itself in a loop, and
  * higher-precedence parsers, but requires parens for lower-
  * -precedence parsers *)
-
-let partial_argument t = (t `act` Some) `alt` (keysym "_" `cap` None)
+(* Incidentally, these are all function application of some kind. Go figure. *)
 
 let term () =
+  let partial_argument t = (t `act` Some) `alt` (keysym "_" `cap` None)
+
   let application =
     (* cursed idea: _(arg) meta-partial function application *)
     let left = term_key
