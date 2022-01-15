@@ -124,14 +124,14 @@ let misc_tests () = [
 
 let show_all = any ("-a" ==) (to_list arg)
 
-let parser_test parser (test, expected) =
-  let got = parse (parser `seq` eof) test
-  let dgot = parse parser test
-  (* TODO: figure out how to impl eq for term, to fix this hack *)
-  (* ideally impl show as well, showterm doesn't quite show the ast *)
+let parser_test p (test, expected) =
+  let eof = neg star
+  let got = parse (p `seq` eof) test
+  let dgot = parse p test
   let sexp = showterm <$> expected
   let sgot = showterm <$> got
   let sdgot = showterm <$> dgot
+  (* TODO: figure out how to impl eq for term, to fix this hack *)
   in (sexp == sgot, test, sexp, sgot, sdgot)
 
 let filter_failing results = if show_all then results else filter (fun (success, _) -> not success) results
@@ -143,22 +143,22 @@ let show_result (success, test, exp, got, debug) =
   ^ "Got     : " ^ show got ^ "\n"
   ^ "Partial : " ^ show debug ^ "\n"
 
-let run_tests (parser, tests) =
-  let results = parser_test parser <$> tests
+let run_tests (p, tests) =
+  let results = parser_test p <$> tests
   let fails = filter_failing results
   in map (put_line % show_result) fails
 
-let _ = run_tests (parser, identifier_tests ())
-let _ = run_tests (parser, boolean_tests ())
-let _ = run_tests (parser, string_tests ())
-let _ = run_tests (parser, list_tests ())
-let _ = run_tests (parser, record_tests ())
-let _ = run_tests (parser, application_tests ())
-let _ = run_tests (parser, infix_op_tests ())
-let _ = run_tests (parser, prefix_op_tests ())
-let _ = run_tests (parser, suffix_op_tests ())
-let _ = run_tests (parser, abstraction_tests ())
-let _ = run_tests (parser, let_expression_tests ())
-let _ = run_tests (parser, let_rec_expression_tests ())
-let _ = run_tests (parser, hole_tests ())
-let _ = run_tests (parser, misc_tests ())
+let _ = run_tests (syntax, identifier_tests ())
+let _ = run_tests (syntax, boolean_tests ())
+let _ = run_tests (syntax, string_tests ())
+let _ = run_tests (syntax, list_tests ())
+let _ = run_tests (syntax, record_tests ())
+let _ = run_tests (syntax, application_tests ())
+let _ = run_tests (syntax, infix_op_tests ())
+let _ = run_tests (syntax, prefix_op_tests ())
+let _ = run_tests (syntax, suffix_op_tests ())
+let _ = run_tests (syntax, abstraction_tests ())
+let _ = run_tests (syntax, let_expression_tests ())
+let _ = run_tests (syntax, let_rec_expression_tests ())
+let _ = run_tests (syntax, hole_tests ())
+let _ = run_tests (syntax, misc_tests ())

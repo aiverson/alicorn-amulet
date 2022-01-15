@@ -264,4 +264,4 @@ let term () =
   in infix_op_application
 let term = term ()
 
-let parser = grammar { term = term } term_ref
+let syntax = grammar { term = term } term_ref
