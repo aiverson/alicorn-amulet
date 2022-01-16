@@ -110,7 +110,8 @@ let let_rec_expression_tests () = [
 ]
 
 let hole_tests () = [
-  ("$?help", Some (hole_fix "help"))
+  ("$?help", Some (hole_fix (Some "help"))),
+  ("$?", Some (hole_fix None))
 ]
 
 let misc_tests () = [

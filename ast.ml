@@ -37,7 +37,7 @@ type term 'id 'term =
 | LetRecBinding of idstyle 'id * 'term * 'term
 (* | AsBinding of 'term * 'id * 'typ *)
 | Conditional of 'term * 'term * 'term
-| Hole of 'id
+| Hole of option 'id
 
 instance functor (term 'id)
   let f <$> t = match t with

@@ -37,7 +37,8 @@ let showterm = cata (function
   | LetBinding (id, def, body) -> "let " ^ show id ^ " = " ^ def ^ " in " ^ body
   | LetRecBinding (id, def, body) -> "let rec " ^ show id ^ " = " ^ def ^ " in " ^ body
   | Conditional (cond, cons, alt) -> "if " ^ cond ^ " then " ^ cons ^ " else " ^ alt
-  | Hole id -> "$?"^id)
+  | Hole (Some id) -> "$?"^id
+  | Hole None -> "$?")
 
 (* Fixed constructors *)
 (* TODO: metaprogram this away *)
@@ -196,8 +197,9 @@ let syntax () =
   let let_binding = keyword "let" `seq` let_body `act` let_binding_fix
   let let_rec_binding = keyword "let" `seq` keyword "rec" `seq` let_body `act` let_rec_binding_fix
 
-  (* TODO: id optional *)
-  let hole = p "$?" `seq` id_basic `act` hole_fix
+  let hole =
+    let id_part = id_basic `act` Some `alt` cc None
+    in p "$?" `seq` id_part `act` hole_fix
 
   let term_key = (
           term_paren
