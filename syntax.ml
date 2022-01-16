@@ -27,8 +27,7 @@ let matchingbracket = Map.from_list [("(|", "|)"), ("[|", "|]"), ("{|", "|}")]
 let showterm = cata (function
   | LiteralBool b -> show b
   | StringCons (s, ts) -> "\"" ^ s ^ (map (fun (t, s) -> "$("^t^")"^s) ts |> catstr) ^ "\""
-  | ListCons (ts, None) -> "[" ^ sep_commas ts ^ "]"
-  | ListCons (ts, Some tl) -> "[" ^ sep_commas (ts ++ ["..."^tl]) ^ "]"
+  | ListCons ts -> "[" ^ sep_commas ts ^ "]"
   | RecordCons tts -> "{" ^ (map (fun (a, b) -> a ^ " = " ^ b) tts |> sep_commas) ^ "}"
   | Identifier name -> show name
   (* TODO: prettier operators *)
@@ -38,8 +37,8 @@ let showterm = cata (function
   | LetBinding (id, def, body) -> "let " ^ show id ^ " = " ^ def ^ " in " ^ body
   | LetRecBinding (id, def, body) -> "let rec " ^ show id ^ " = " ^ def ^ " in " ^ body
   | Conditional (cond, cons, alt) -> "if " ^ cond ^ " then " ^ cons ^ " else " ^ alt
-  | Hole None -> "$?"
-  | Hole (Some id) -> "$?"^id)
+  | Hole (Some id) -> "$?"^id
+  | Hole None -> "$?")
 
 (* Fixed constructors *)
 (* TODO: metaprogram this away *)
@@ -84,7 +83,6 @@ let keysym str = p str `seq` wsq
 let cap pat res = pat `seq` cc res
 let excl pat unless = neg unless `seq` pat
 let comma_sep pat = collect_list (sepseq pat (keysym ","))
-let opt pat = pat `act` Some `alt` cc None
 
 (* x *MUST* capture something, even if it's something dumb like cc () *)
 (* otherwise types don't line up *)
@@ -182,16 +180,10 @@ let syntax () =
     let string_frag = collect_list (regular_chars `alt` escape_chars `rep` 0) `act` catstr
     let splice_frag = p "$" `seq` (identifier_shy `alt` term_paren_shy)
     let splice_list = collect_list (collect_tuple (splice_frag `seq` string_frag) `rep` 0)
-    let string_body = collect_tuple (string_frag `seq` splice_list)
-    in p "\"" `seq` string_body `seq` keysym "\"" `act` string_cons_fix
+    let string_inside = collect_tuple (string_frag `seq` splice_list)
+    in p "\"" `seq` string_inside `seq` keysym "\"" `act` string_cons_fix
 
-  let list_cons =
-    let list_elements = comma_sep term_ref
-    (* TODO: requiring a comma before the tail is probably silly *)
-    (* but doing [...tail] seems silly too *)
-    let list_tail = keysym "," `seq` keysym "..." `seq` term_ref
-    let list_body = collect_tuple (list_elements `seq` opt list_tail)
-    in keysym "[" `seq` list_body `seq` keysym "]" `act` list_cons_fix
+  let list_cons = keysym "[" `seq` comma_sep term_ref `seq` keysym "]" `act` list_cons_fix
 
   let record_cons =
     let record_binding1 = define_pattern `act` (fun (l, r) -> (identifier_fix l, r))
@@ -207,7 +199,9 @@ let syntax () =
   let let_binding = keyword "let" `seq` let_body `act` let_binding_fix
   let let_rec_binding = keyword "let" `seq` keyword "rec" `seq` let_body `act` let_rec_binding_fix
 
-  let hole = p "$?" `seq` opt id_basic `act` hole_fix
+  let hole =
+    let id_part = id_basic `act` Some `alt` cc None
+    in p "$?" `seq` id_part `act` hole_fix
 
   let term_key = (
           term_paren
