@@ -69,6 +69,7 @@ let alnum_ext = alnum `alt` p "_"
 
 let id_basic_shy = c (alpha_lower `seq` (alnum_ext `rep` 0))
 let id_basic = id_basic_shy `seq` wsq
+let id_constructor = c (alpha_upper `seq` (alnum_ext `rep` 0)) `seq` wsq
 (* TODO: different infix precedences *)
 let id_infix = c (s "&+-<@^" `seq` (s "&+-@>" `rep` 0)) `seq` wsq
 let id_prefix = c (s "#+-" `rep` 1) `seq` wsq
@@ -99,6 +100,7 @@ let parse_bool = function | "true" -> Some true | "false" -> Some false | _ -> N
 let literal_bool: parser1 pterm = id_basic `actx` parse_bool `act` literal_bool_fix
 let identifier_shy = id_basic_shy `act` identifier_basic_fix
 let identifier = id_basic `act` identifier_basic_fix
+let constructor = id_constructor `act` identifier_constructor_fix
 let infix_op = id_infix `act` identifier_infix_fix
 let prefix_op = id_prefix `act` identifier_prefix_fix
 let suffix_op = id_suffix `act` identifier_suffix_fix
@@ -212,6 +214,7 @@ let syntax () =
     `alt` let_rec_binding
     `alt` hole
     `alt` identifier
+    `alt` constructor
   )
 
   (* Left-recursive parsers are hard >< *)

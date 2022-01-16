@@ -18,6 +18,7 @@ open import "./syntax.ml"
  * where test2 is parenthesized in a way that makes parsing obvious *)
 
 let identifier_tests () = [
+  ("foo", Some (identifier_basic_fix "foo")),
   ("list", Some (identifier_basic_fix "list")),
   ("sum", Some (identifier_basic_fix "sum")),
   ("foldl", Some (identifier_basic_fix "foldl")),
@@ -27,6 +28,14 @@ let identifier_tests () = [
   ("iCons", Some (identifier_basic_fix "iCons")),
   ("e", Some (identifier_basic_fix "e")),
   ("truething", Some (identifier_basic_fix "truething"))
+]
+
+let constructor_tests () = [
+  ("Foo", Some (identifier_constructor_fix "Foo")),
+  ("Left(l)", Some (application_fix (identifier_constructor_fix "Left", [Some (identifier_basic_fix "l")]))),
+  ("Right(_)", Some (application_fix (identifier_constructor_fix "Right", [None]))),
+  ("Nil ()", Some (application_fix (identifier_constructor_fix "Nil", []))),
+  ("Cons (x, [y, z])", Some (application_fix (identifier_constructor_fix "Cons", [Some (identifier_basic_fix "x"), Some (list_cons_fix [identifier_basic_fix "y", identifier_basic_fix "z"])])))
 ]
 
 let boolean_tests (): list (string * option pterm) = [
@@ -117,7 +126,9 @@ let hole_tests () = [
 let misc_tests () = [
   ("_", None),
   ("_internal", None),
+  ("_Cons", None),
   ("++", None),
+  ("::", None),
   ("a + + b", None) (* This is ambiguous, and should be banned *)
 ]
 
@@ -150,6 +161,7 @@ let run_tests (p, tests) =
   in map (put_line % show_result) fails
 
 let _ = run_tests (syntax, identifier_tests ())
+let _ = run_tests (syntax, constructor_tests ())
 let _ = run_tests (syntax, boolean_tests ())
 let _ = run_tests (syntax, string_tests ())
 let _ = run_tests (syntax, list_tests ())
