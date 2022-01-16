@@ -37,8 +37,8 @@ let showterm = cata (function
   | LetBinding (id, def, body) -> "let " ^ show id ^ " = " ^ def ^ " in " ^ body
   | LetRecBinding (id, def, body) -> "let rec " ^ show id ^ " = " ^ def ^ " in " ^ body
   | Conditional (cond, cons, alt) -> "if " ^ cond ^ " then " ^ cons ^ " else " ^ alt
-  | Hole (Some id) -> "$?"^id
-  | Hole None -> "$?")
+  | Hole None -> "$?"
+  | Hole (Some id) -> "$?"^id)
 
 (* Fixed constructors *)
 (* TODO: metaprogram this away *)
@@ -83,6 +83,7 @@ let keysym str = p str `seq` wsq
 let cap pat res = pat `seq` cc res
 let excl pat unless = neg unless `seq` pat
 let comma_sep pat = collect_list (sepseq pat (keysym ","))
+let opt pat = pat `act` Some `alt` cc None
 
 (* x *MUST* capture something, even if it's something dumb like cc () *)
 (* otherwise types don't line up *)
@@ -165,23 +166,31 @@ let syntax () =
   )
 
   let string_cons =
-    (* TODO: newlines (as in actual 0A byte in the input) probably not allowed in strings *)
-    (* TODO: other kinds of strings *)
-    let regular_chars = c (star `excl` s "\"$\\")
+    let chars_regular = c (star `excl` s "\n\r\"$\\")
+    let chars_multiline = c (star `excl` (s "$\\" `alt` p "''"))
+    let chars_triple = star `excl` p "'''"
     let escape_chars =
       foldl1 alt ((fun (s, r) -> lit s r) <$> [
         ("\\t", "\t"),
         ("\\n", "\n"),
+        ("\\r", "\r"),
         ("\\\"", "\""),
+        ("\\$", "$"),
         ("\\\\", "\\")
       ])
     (* This looks really weird because escape_chars provides a custom capture,
      * which can't be handled with a simple c (bad things happen) *)
-    let string_frag = collect_list (regular_chars `alt` escape_chars `rep` 0) `act` catstr
-    let splice_frag = p "$" `seq` (identifier_shy `alt` term_paren_shy)
-    let splice_list = collect_list (collect_tuple (splice_frag `seq` string_frag) `rep` 0)
-    let string_inside = collect_tuple (string_frag `seq` splice_list)
-    in p "\"" `seq` string_inside `seq` keysym "\"" `act` string_cons_fix
+    let string_body chars =
+      let string_frag = collect_list (chars `alt` escape_chars `rep` 0) `act` catstr
+      let splice_frag = p "$" `seq` (identifier_shy `alt` term_paren_shy)
+      let splice_list = collect_list (collect_tuple (splice_frag `seq` string_frag) `rep` 0)
+      in collect_tuple (string_frag `seq` splice_list)
+    let string_regular = p "\"" `seq` string_body chars_regular `seq` keysym "\""
+    (* TODO: magic whitespace sensitivity? *)
+    let string_multiline = p "''" `seq` string_body chars_multiline `seq` keysym "''"
+    let string_triple_body = collect_tuple (c (chars_triple `rep` 0) `cap` [])
+    let string_triple = p "'''" `seq` string_triple_body `seq` keysym "'''"
+    in string_regular `alt` string_multiline `alt` string_triple `act` string_cons_fix
 
   let list_cons = keysym "[" `seq` comma_sep term_ref `seq` keysym "]" `act` list_cons_fix
 
@@ -199,9 +208,7 @@ let syntax () =
   let let_binding = keyword "let" `seq` let_body `act` let_binding_fix
   let let_rec_binding = keyword "let" `seq` keyword "rec" `seq` let_body `act` let_rec_binding_fix
 
-  let hole =
-    let id_part = id_basic `act` Some `alt` cc None
-    in p "$?" `seq` id_part `act` hole_fix
+  let hole = p "$?" `seq` opt id_basic `act` hole_fix
 
   let term_key = (
           term_paren

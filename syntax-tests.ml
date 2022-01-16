@@ -46,7 +46,11 @@ let boolean_tests (): list (string * option pterm) = [
 let string_tests () = [
   ("\"The quick brown fox jumps over the lazy dog.\"", Some (string_cons_fix ("The quick brown fox jumps over the lazy dog.", []))),
   ("\"The quick $color fox $(act)s over the lazy dog.\"", Some (string_cons_fix ("The quick ", [(identifier_basic_fix "color", " fox "), (identifier_basic_fix "act", "s over the lazy dog.")]))),
-  ("\"The \\\"quick\\\" brown fox jumps over the \\\\azy dog.\"", Some (string_cons_fix ("The \"quick\" brown fox jumps over the \\azy dog.", [])))
+  ("\"The \\\"quick\\\" brown fox jump\\$ over the \\\\azy dog.\"", Some (string_cons_fix ("The \"quick\" brown fox jump$ over the \\azy dog.", []))),
+  ("''The quick\n\"$color\" fox\n$(act)s over\nthe lazy dog.''", Some (string_cons_fix ("The quick\n\"", [(identifier_basic_fix "color", "\" fox\n"), (identifier_basic_fix "act", "s over\nthe lazy dog.")]))),
+  ("'''The \"quick\" brown fox jump$ over the \\azy dog.'''", Some (string_cons_fix ("The \"quick\" brown fox jump$ over the \\azy dog.", []))),
+
+  ("\"\nope\"", None)
 ]
 
 let list_tests () = [
