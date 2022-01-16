@@ -26,7 +26,7 @@ instance show (idstyle string)
 type term 'id 'term =
 | LiteralBool of bool
 | StringCons of string * list ('term * string) (* strings with splices *)
-| ListCons of list 'term
+| ListCons of list 'term * option 'term
 | RecordCons of list ('term * 'term)
 | Identifier of idstyle 'id
 | Application of 'term * list (option 'term) (* single argument positional application, save named and optional arguments for later *)
@@ -43,7 +43,7 @@ instance functor (term 'id)
   let f <$> t = match t with
   | LiteralBool b -> LiteralBool b
   | StringCons (s, ts) -> StringCons (s, (first f) <$> ts)
-  | ListCons ts -> ListCons (f <$> ts)
+  | ListCons (ts, tl) -> ListCons (f <$> ts, f <$> tl)
   | RecordCons tts -> RecordCons (f *** f <$> tts)
   | Identifier i -> Identifier i
   | Application (t, ts) -> Application (f t, (f <$>) <$> ts)

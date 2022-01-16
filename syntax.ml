@@ -27,7 +27,8 @@ let matchingbracket = Map.from_list [("(|", "|)"), ("[|", "|]"), ("{|", "|}")]
 let showterm = cata (function
   | LiteralBool b -> show b
   | StringCons (s, ts) -> "\"" ^ s ^ (map (fun (t, s) -> "$("^t^")"^s) ts |> catstr) ^ "\""
-  | ListCons ts -> "[" ^ sep_commas ts ^ "]"
+  | ListCons (ts, None) -> "[" ^ sep_commas ts ^ "]"
+  | ListCons (ts, Some tl) -> "[" ^ sep_commas (ts ++ ["..."^tl]) ^ "]"
   | RecordCons tts -> "{" ^ (map (fun (a, b) -> a ^ " = " ^ b) tts |> sep_commas) ^ "}"
   | Identifier name -> show name
   (* TODO: prettier operators *)
@@ -192,7 +193,13 @@ let syntax () =
     let string_triple = p "'''" `seq` string_triple_body `seq` keysym "'''"
     in string_regular `alt` string_multiline `alt` string_triple `act` string_cons_fix
 
-  let list_cons = keysym "[" `seq` comma_sep term_ref `seq` keysym "]" `act` list_cons_fix
+  let list_cons =
+    let list_elements = comma_sep term_ref
+    (* TODO: requiring a comma before the tail is probably silly *)
+    (* but doing [...tail] seems silly too *)
+    let list_tail = keysym "," `seq` keysym "..." `seq` term_ref
+    let list_body = collect_tuple (list_elements `seq` opt list_tail)
+    in keysym "[" `seq` list_body `seq` keysym "]" `act` list_cons_fix
 
   let record_cons =
     let record_binding1 = define_pattern `act` (fun (l, r) -> (identifier_fix l, r))

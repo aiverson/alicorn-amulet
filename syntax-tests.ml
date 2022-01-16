@@ -35,7 +35,7 @@ let constructor_tests () = [
   ("Left(l)", Some (application_fix (identifier_constructor_fix "Left", [Some (identifier_basic_fix "l")]))),
   ("Right(_)", Some (application_fix (identifier_constructor_fix "Right", [None]))),
   ("Nil ()", Some (application_fix (identifier_constructor_fix "Nil", []))),
-  ("Cons (x, [y, z])", Some (application_fix (identifier_constructor_fix "Cons", [Some (identifier_basic_fix "x"), Some (list_cons_fix [identifier_basic_fix "y", identifier_basic_fix "z"])])))
+  ("Cons (x, [y, z])", Some (application_fix (identifier_constructor_fix "Cons", [Some (identifier_basic_fix "x"), Some (list_cons_fix ([identifier_basic_fix "y", identifier_basic_fix "z"], None))])))
 ]
 
 let boolean_tests (): list (string * option pterm) = [
@@ -54,8 +54,11 @@ let string_tests () = [
 ]
 
 let list_tests () = [
-  ("[a,b,c]", Some (list_cons_fix [identifier_basic_fix "a", identifier_basic_fix "b", identifier_basic_fix "c"])),
-  ("[ a, b, c ]", Some (list_cons_fix [identifier_basic_fix "a", identifier_basic_fix "b", identifier_basic_fix "c"]))
+  ("[a,b,c]", Some (list_cons_fix ([identifier_basic_fix "a", identifier_basic_fix "b", identifier_basic_fix "c"], None))),
+  ("[ a, b, c ]", Some (list_cons_fix ([identifier_basic_fix "a", identifier_basic_fix "b", identifier_basic_fix "c"], None))),
+  ("[ a, b, ...tail ]", Some (list_cons_fix ([identifier_basic_fix "a", identifier_basic_fix "b"], Some (identifier_basic_fix "tail")))),
+
+  ("[ ...tail ]", None)
 ]
 
 let record_tests () = [
