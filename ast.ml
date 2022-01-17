@@ -119,6 +119,7 @@ let showterm = cata (function
 (* TODO: this is a massive hog of limited variables. figure something out! *)
 let pattern_blank_fix = Fix PatternBlank
 let pattern_binding_basic_fix x = Fix (PatternBinding (IdentifierBasic x))
+let pattern_binding_constructor_fix x = Fix (PatternBinding (IdentifierConstructor x))
 let pattern_binding_infix_fix x = Fix (PatternBinding (IdentifierInfix x))
 let pattern_binding_prefix_fix x = Fix (PatternBinding (IdentifierPrefix x))
 let pattern_binding_suffix_fix x = Fix (PatternBinding (IdentifierSuffix x))

@@ -55,30 +55,64 @@ let unzip xs = foldr (fun (l, r) (ls, rs) -> (l::ls, r::rs)) ([], []) xs
 let fixsuffix f (h, rs) = let (args, parts) = unzip rs in (f (h, parts), args)
 let suffix_complex_op x = id_suffix_complex x `act` fixsuffix identifier_suffix_complex_fix
 
+let list_sequence (elem: parser (parservals 'a emptyparservals)) =
+  let list_elements = comma_sep elem
+  let list_tail = keysym "..." `seq` elem
+  let list_alt_et = collect_tuple (list_elements `seq` opt (keysym "," `seq` list_tail))
+  let list_alt_t = list_tail `act` (fun t -> ([], Some t))
+  let list_body = list_alt_et `alt` list_alt_t
+  in keysym "[" `seq` list_body `seq` keysym "]"
+
+let record_sequence elem = keysym "{" `seq` comma_sep elem `seq` keysym "}"
+
 (* Attempt to control variables usage in compiled lua *)
 (* TODO: move this even higher and figure out the type errors *)
 let syntax () =
+
+  let pattern_ref: parser1 ppat = v "pattern"
+
+  let pattern () =
+    let pattern_blank = keysym "_" `cap` pattern_blank_fix
+
+    let pattern_binding = id_basic `act` pattern_binding_basic_fix
+
+    let pattern_constructor =
+      let name = id_constructor `act` IdentifierConstructor
+      let args = keysym "(" `seq` comma_sep pattern_ref `seq` keysym ")"
+      let cons_args = collect_tuple (name `seq` args) `act` pattern_constructor_fix
+      let cons_noargs = id_constructor `act` pattern_binding_constructor_fix
+      in cons_args `alt` cons_noargs
+
+    let pattern_list = list_sequence pattern_ref `act` pattern_list_fix
+
+    let pattern_record =
+      let key = id_basic `act` IdentifierBasic
+      let binding = collect_tuple (key `seq` keysym "=" `seq` pattern_ref)
+      in record_sequence binding `act` pattern_record_fix
+
+    in (
+            pattern_blank
+      `alt` pattern_binding
+      `alt` pattern_constructor
+      `alt` pattern_list
+      `alt` pattern_record
+    )
+  let pattern = pattern ()
+
+  let pattern_grammar = grammar { pattern = pattern } pattern_ref
 
   let term_ref: parser1 pterm = v "term"
   let term_paren_shy = keysym "(" `seq` term_ref `seq` p ")"
   let term_paren = term_paren_shy `seq` wsq
   let term_definition = keysym "=" `seq` term_ref
 
-  let pattern_sequence () =
-    let pattern_binding = id_basic `act` pattern_binding_basic_fix
-
-    in (
-      (*`alt`*) pattern_binding
-    )
-  let pattern_sequence = pattern_sequence ()
-
   let abstraction_body =
-    let args = keysym "(" `seq` comma_sep pattern_sequence `seq` keysym ")"
+    let args = keysym "(" `seq` comma_sep pattern_grammar `seq` keysym ")"
     in collect_tuple (args `seq` term_definition) `act` term_abstraction_fix
 
   let define_sequence () =
     let define_simple =
-      let pat = pattern_sequence
+      let pat = pattern_grammar
       in collect_tuple (pat `seq` term_definition)
 
     let define_function =
@@ -86,27 +120,27 @@ let syntax () =
       in collect_tuple (left `seq` abstraction_body)
 
     let define_infix =
-      let left = pattern_sequence
+      let left = pattern_grammar
       let op = id_infix `act` pattern_binding_infix_fix
-      let right = pattern_sequence
+      let right = pattern_grammar
       let fixup (l, op, r, body) = (op, term_abstraction_fix ([l, r], body))
       in collect_tuple (left `seq` op `seq` right `seq` term_definition) `act` fixup
 
     let define_prefix =
       let op = id_prefix `act` pattern_binding_prefix_fix
-      let right = pattern_sequence
+      let right = pattern_grammar
       let fixup (op, r, body) = (op, term_abstraction_fix ([r], body))
       in collect_tuple (op `seq` right `seq` term_definition) `act` fixup
 
     let define_suffix =
-      let left = pattern_sequence
+      let left = pattern_grammar
       let op = id_suffix `act` pattern_binding_suffix_fix
       let fixup (l, op, body) = (op, term_abstraction_fix ([l], body))
       in collect_tuple (left `seq` op `seq` term_definition) `act` fixup
 
     let define_suffix_complex =
-      let left = pattern_sequence
-      let rights = id_suffix_complex pattern_sequence `act` fixsuffix pattern_binding_suffix_complex_fix
+      let left = pattern_grammar
+      let rights = id_suffix_complex pattern_grammar `act` fixsuffix pattern_binding_suffix_complex_fix
       let fixup (l, (op, rs), body) = (op, term_abstraction_fix (l::rs, body))
       in collect_tuple (left `seq` rights `seq` term_definition) `act` fixup
 
@@ -148,13 +182,7 @@ let syntax () =
       let string_triple = p "'''" `seq` string_triple_body `seq` keysym "'''"
       in string_regular `alt` string_multiline `alt` string_triple `act` term_string_fix
 
-    let term_list =
-      let list_elements = comma_sep term_ref
-      (* TODO: requiring a comma before the tail is probably silly *)
-      (* but doing [...tail] seems silly too *)
-      let list_tail = keysym "," `seq` keysym "..." `seq` term_ref
-      let list_body = collect_tuple (list_elements `seq` opt list_tail)
-      in keysym "[" `seq` list_body `seq` keysym "]" `act` term_list_fix
+    let term_list = list_sequence term_ref `act` term_list_fix
 
     let term_record =
       let unrepresentable (l, r) = match unfix l with
@@ -163,7 +191,7 @@ let syntax () =
       let record_binding1 = define_sequence `actx` unrepresentable
       let record_binding2 = collect_tuple (term_string `alt` term_paren `seq` term_definition)
       let record_binding = record_binding1 `alt` record_binding2
-      in keysym "{" `seq` comma_sep record_binding `seq` keysym "}" `act` term_record_fix
+      in record_sequence record_binding `act` term_record_fix
 
     let term_abstraction = keyword "fun" `seq` abstraction_body
 
