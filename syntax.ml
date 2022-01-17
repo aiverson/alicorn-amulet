@@ -3,63 +3,7 @@ open import "prelude.ml"
 open import "./parsing/lpeg.ml"
 open import "./parsing/utils.ml"
 open import "./ast.ml"
-open import "./result.ml"
 open import "./hylo.ml"
-open import "./utils.ml"
-module Map = import "data/map.ml"
-
-type position = Pos of int
-let get_pos() = cp
-
-type pterm <- fix (term string)
-
-let rec intercalate s ss = match ss with
-| Cons (a, Cons (b, tl)) -> a ^ s ^ intercalate s (Cons (b, tl))
-| Cons (a, Nil) -> a
-| Nil -> ""
-
-let sep_commas xs = intercalate ", " xs
-
-let catstr cs = foldl (^) "" cs
-
-let matchingbracket = Map.from_list [("(|", "|)"), ("[|", "|]"), ("{|", "|}")]
-
-let showterm = cata (function
-  | LiteralBool b -> show b
-  | StringCons (s, ts) -> "\"" ^ s ^ (map (fun (t, s) -> "$("^t^")"^s) ts |> catstr) ^ "\""
-  | ListCons (ts, None) -> "[" ^ sep_commas ts ^ "]"
-  | ListCons (ts, Some tl) -> "[" ^ sep_commas (ts ++ ["..."^tl]) ^ "]"
-  | RecordCons tts -> "{" ^ (map (fun (a, b) -> a ^ " = " ^ b) tts |> sep_commas) ^ "}"
-  | Identifier name -> show name
-  (* TODO: prettier operators *)
-  | Application (f, xs) -> f ^ "(" ^ (map (`or_default` "_") xs |> sep_commas) ^ ")"
-  (* TODO: prettier function definitions *)
-  | Abstraction (ids, body) -> "(fun (" ^ sep_commas ids ^ ") = " ^ body ^ ")"
-  | LetBinding (id, def, body) -> "let " ^ show id ^ " = " ^ def ^ " in " ^ body
-  | LetRecBinding (id, def, body) -> "let rec " ^ show id ^ " = " ^ def ^ " in " ^ body
-  | Conditional (cond, cons, alt) -> "if " ^ cond ^ " then " ^ cons ^ " else " ^ alt
-  | Hole None -> "$?"
-  | Hole (Some id) -> "$?"^id)
-
-(* Fixed constructors *)
-(* TODO: metaprogram this away *)
-let identifier_fix x = Fix (Identifier x)
-let identifier_basic_fix x = Fix (Identifier (IdentifierBasic x))
-let identifier_constructor_fix x = Fix (Identifier (IdentifierConstructor x))
-let identifier_infix_fix x = Fix (Identifier (IdentifierInfix x))
-let identifier_prefix_fix x = Fix (Identifier (IdentifierPrefix x))
-let identifier_suffix_fix x = Fix (Identifier (IdentifierSuffix x))
-let identifier_suffix_complex_fix x = Fix (Identifier (IdentifierSuffixComplex x))
-let literal_bool_fix x = Fix (LiteralBool x)
-let string_cons_fix x = Fix (StringCons x)
-let list_cons_fix x = Fix (ListCons x)
-let record_cons_fix x = Fix (RecordCons x)
-let application_fix x = Fix (Application x)
-let abstraction_fix x = Fix (Abstraction x)
-let let_binding_fix x = Fix (LetBinding x)
-let let_rec_binding_fix x = Fix (LetRecBinding x)
-let conditional_fix x = Fix (Conditional x)
-let hole_fix x = Fix (Hole x)
 
 let num = r "09"
 let alpha_upper = r "AZ"
@@ -99,13 +43,13 @@ let id_suffix_complex (x: parser (parservals 'a emptyparservals)) =
 (* this means conditionals are just pattern matches on bool *)
 (* (not strictly true, Open has Ideas) *)
 let parse_bool = function | "true" -> Some true | "false" -> Some false | _ -> None
-let literal_bool: parser1 pterm = id_basic `actx` parse_bool `act` literal_bool_fix
-let identifier_shy = id_basic_shy `act` identifier_basic_fix
-let identifier = id_basic `act` identifier_basic_fix
-let constructor = id_constructor `act` identifier_constructor_fix
-let infix_op = id_infix `act` identifier_infix_fix
-let prefix_op = id_prefix `act` identifier_prefix_fix
-let suffix_op = id_suffix `act` identifier_suffix_fix
+let term_bool: parser1 pterm = id_basic `actx` parse_bool `act` term_bool_fix
+let term_identifier_shy: parser1 pterm = id_basic_shy `act` identifier_basic_fix
+let term_identifier: parser1 pterm = id_basic `act` identifier_basic_fix
+let term_constructor: parser1 pterm = id_constructor `act` identifier_constructor_fix
+let infix_op: parser1 pterm = id_infix `act` identifier_infix_fix
+let prefix_op: parser1 pterm = id_prefix `act` identifier_prefix_fix
+let suffix_op: parser1 pterm = id_suffix `act` identifier_suffix_fix
 (* https://www.youtube.com/watch?v=T-BoDW1_9P4&t=11m3s *)
 let unzip xs = foldr (fun (l, r) (ls, rs) -> (l::ls, r::rs)) ([], []) xs
 let fixsuffix f (h, rs) = let (args, parts) = unzip rs in (f (h, parts), args)
@@ -120,116 +64,131 @@ let syntax () =
   let term_paren = term_paren_shy `seq` wsq
   let term_definition = keysym "=" `seq` term_ref
 
+  let pattern_sequence () =
+    let pattern_binding = id_basic `act` pattern_binding_basic_fix
+
+    in (
+      (*`alt`*) pattern_binding
+    )
+  let pattern_sequence = pattern_sequence ()
+
   let abstraction_body =
-    let args = keysym "(" `seq` comma_sep id_basic `seq` keysym ")"
-    in collect_tuple (args `seq` term_definition) `act` abstraction_fix
+    let args = keysym "(" `seq` comma_sep pattern_sequence `seq` keysym ")"
+    in collect_tuple (args `seq` term_definition) `act` term_abstraction_fix
 
-  (* TODO: this is not enough, we need a whole pattern match identifier type
-   * it needs to handle possibly self-referencing cases like lists and tuples *)
-  let define_simple =
-    let name = id_basic `act` IdentifierBasic
-    in collect_tuple (name `seq` term_definition)
+  let define_sequence () =
+    let define_simple =
+      let pat = pattern_sequence
+      in collect_tuple (pat `seq` term_definition)
 
-  let define_function = collect_tuple (id_basic `act` IdentifierBasic `seq` abstraction_body)
+    let define_function =
+      let left = id_basic `act` pattern_binding_basic_fix
+      in collect_tuple (left `seq` abstraction_body)
 
-  let define_infix =
-    let left = id_basic
-    let op = id_infix `act` IdentifierInfix
-    let right = id_basic
-    let fixup (l, op, r, body) = (op, abstraction_fix ([l, r], body))
-    in collect_tuple (left `seq` op `seq` right `seq` term_definition) `act` fixup
+    let define_infix =
+      let left = pattern_sequence
+      let op = id_infix `act` pattern_binding_infix_fix
+      let right = pattern_sequence
+      let fixup (l, op, r, body) = (op, term_abstraction_fix ([l, r], body))
+      in collect_tuple (left `seq` op `seq` right `seq` term_definition) `act` fixup
 
-  let define_prefix =
-    let op = id_prefix `act` IdentifierPrefix
-    let right = id_basic
-    let fixup (op, r, body) = (op, abstraction_fix ([r], body))
-    in collect_tuple (op `seq` right `seq` term_definition) `act` fixup
+    let define_prefix =
+      let op = id_prefix `act` pattern_binding_prefix_fix
+      let right = pattern_sequence
+      let fixup (op, r, body) = (op, term_abstraction_fix ([r], body))
+      in collect_tuple (op `seq` right `seq` term_definition) `act` fixup
 
-  let define_suffix =
-    let left = id_basic
-    let op = id_suffix `act` IdentifierSuffix
-    let fixup (l, op, body) = (op, abstraction_fix ([l], body))
-    in collect_tuple (left `seq` op `seq` term_definition) `act` fixup
+    let define_suffix =
+      let left = pattern_sequence
+      let op = id_suffix `act` pattern_binding_suffix_fix
+      let fixup (l, op, body) = (op, term_abstraction_fix ([l], body))
+      in collect_tuple (left `seq` op `seq` term_definition) `act` fixup
 
-  let define_suffix_complex =
-    let left = id_basic
-    let rights = id_suffix_complex id_basic `act` fixsuffix IdentifierSuffixComplex
-    let fixup (l, (op, rs), body) = (op, abstraction_fix (l::rs, body))
-    in collect_tuple (left `seq` rights `seq` term_definition) `act` fixup
+    let define_suffix_complex =
+      let left = pattern_sequence
+      let rights = id_suffix_complex pattern_sequence `act` fixsuffix pattern_binding_suffix_complex_fix
+      let fixup (l, (op, rs), body) = (op, term_abstraction_fix (l::rs, body))
+      in collect_tuple (left `seq` rights `seq` term_definition) `act` fixup
 
-  let define_pattern = (
-          define_simple
-    `alt` define_function
-    `alt` define_infix
-    `alt` define_prefix
-    `alt` define_suffix
-    `alt` define_suffix_complex
-  )
+    in (
+            define_simple
+      `alt` define_function
+      `alt` define_infix
+      `alt` define_prefix
+      `alt` define_suffix
+      `alt` define_suffix_complex
+    )
+  let define_sequence = define_sequence ()
 
-  let string_cons =
-    let chars_regular = c (star `excl` s "\n\r\"$\\")
-    let chars_multiline = c (star `excl` (s "$\\" `alt` p "''"))
-    let chars_triple = star `excl` p "'''"
-    let escape_chars =
-      foldl1 alt ((fun (s, r) -> lit s r) <$> [
-        ("\\t", "\t"),
-        ("\\n", "\n"),
-        ("\\r", "\r"),
-        ("\\\"", "\""),
-        ("\\$", "$"),
-        ("\\\\", "\\")
-      ])
-    (* This looks really weird because escape_chars provides a custom capture,
-     * which can't be handled with a simple c (bad things happen) *)
-    let string_body chars =
-      let string_frag = collect_list (chars `alt` escape_chars `rep` 0) `act` catstr
-      let splice_frag = p "$" `seq` (identifier_shy `alt` term_paren_shy)
-      let splice_list = collect_list (collect_tuple (splice_frag `seq` string_frag) `rep` 0)
-      in collect_tuple (string_frag `seq` splice_list)
-    let string_regular = p "\"" `seq` string_body chars_regular `seq` keysym "\""
-    (* TODO: magic whitespace sensitivity? *)
-    let string_multiline = p "''" `seq` string_body chars_multiline `seq` keysym "''"
-    let string_triple_body = collect_tuple (c (chars_triple `rep` 0) `cap` [])
-    let string_triple = p "'''" `seq` string_triple_body `seq` keysym "'''"
-    in string_regular `alt` string_multiline `alt` string_triple `act` string_cons_fix
+  let term_key () =
+    let term_string =
+      let chars_regular = c (star `excl` s "\n\r\"$\\")
+      let chars_multiline = c (star `excl` (s "$\\" `alt` p "''"))
+      let chars_triple = star `excl` p "'''"
+      let escape_chars =
+        foldl1 alt ((fun (s, r) -> lit s r) <$> [
+          ("\\t", "\t"),
+          ("\\n", "\n"),
+          ("\\r", "\r"),
+          ("\\\"", "\""),
+          ("\\$", "$"),
+          ("\\\\", "\\")
+        ])
+      (* This looks really weird because escape_chars provides a custom capture,
+       * which can't be handled with a simple c (bad things happen) *)
+      let string_body chars =
+        let string_frag = collect_list (chars `alt` escape_chars `rep` 0) `act` foldl (^) ""
+        let splice_frag = p "$" `seq` (term_identifier_shy `alt` term_paren_shy)
+        let splice_list = collect_list (collect_tuple (splice_frag `seq` string_frag) `rep` 0)
+        in collect_tuple (string_frag `seq` splice_list)
+      let string_regular = p "\"" `seq` string_body chars_regular `seq` keysym "\""
+      (* TODO: magic whitespace sensitivity? *)
+      let string_multiline = p "''" `seq` string_body chars_multiline `seq` keysym "''"
+      let string_triple_body = collect_tuple (c (chars_triple `rep` 0) `cap` [])
+      let string_triple = p "'''" `seq` string_triple_body `seq` keysym "'''"
+      in string_regular `alt` string_multiline `alt` string_triple `act` term_string_fix
 
-  let list_cons =
-    let list_elements = comma_sep term_ref
-    (* TODO: requiring a comma before the tail is probably silly *)
-    (* but doing [...tail] seems silly too *)
-    let list_tail = keysym "," `seq` keysym "..." `seq` term_ref
-    let list_body = collect_tuple (list_elements `seq` opt list_tail)
-    in keysym "[" `seq` list_body `seq` keysym "]" `act` list_cons_fix
+    let term_list =
+      let list_elements = comma_sep term_ref
+      (* TODO: requiring a comma before the tail is probably silly *)
+      (* but doing [...tail] seems silly too *)
+      let list_tail = keysym "," `seq` keysym "..." `seq` term_ref
+      let list_body = collect_tuple (list_elements `seq` opt list_tail)
+      in keysym "[" `seq` list_body `seq` keysym "]" `act` term_list_fix
 
-  let record_cons =
-    let record_binding1 = define_pattern `act` (fun (l, r) -> (identifier_fix l, r))
-    let record_binding2 = collect_tuple (string_cons `alt` term_paren `seq` term_definition)
-    let record_binding = record_binding1 `alt` record_binding2
-    in keysym "{" `seq` comma_sep record_binding `seq` keysym "}" `act` record_cons_fix
+    let term_record =
+      let unrepresentable (l, r) = match unfix l with
+        | PatternBinding id -> Some (term_identifier_fix id, r)
+        | _ -> None
+      let record_binding1 = define_sequence `actx` unrepresentable
+      let record_binding2 = collect_tuple (term_string `alt` term_paren `seq` term_definition)
+      let record_binding = record_binding1 `alt` record_binding2
+      in keysym "{" `seq` comma_sep record_binding `seq` keysym "}" `act` term_record_fix
 
-  let abstraction = keyword "fun" `seq` abstraction_body
+    let term_abstraction = keyword "fun" `seq` abstraction_body
 
-  let let_body =
-    let fixup ((a, b), c) = (a, b, c)
-    in collect_tuple (define_pattern `seq` keyword "in" `seq` term_ref) `act` fixup
-  let let_binding = keyword "let" `seq` let_body `act` let_binding_fix
-  let let_rec_binding = keyword "let" `seq` keyword "rec" `seq` let_body `act` let_rec_binding_fix
+    let let_body =
+      let fixup ((a, b), c) = (a, b, c)
+      in collect_tuple (define_sequence `seq` keyword "in" `seq` term_ref) `act` fixup
+    let term_let = keyword "let" `seq` let_body `act` term_let_fix
+    let term_let_rec = keyword "let" `seq` keyword "rec" `seq` let_body `act` term_let_rec_fix
 
-  let hole = p "$?" `seq` opt id_basic `act` hole_fix
+    let term_hole = p "$?" `seq` opt (id_basic `act` IdentifierBasic) `act` term_hole_fix
 
-  let term_key = (
-          term_paren
-    `alt` literal_bool
-    `alt` string_cons
-    `alt` list_cons
-    `alt` record_cons
-    `alt` abstraction
-    `alt` let_binding
-    `alt` let_rec_binding
-    `alt` hole
-    `alt` identifier
-    `alt` constructor
-  )
+    in (
+            term_paren
+      `alt` term_bool
+      `alt` term_string
+      `alt` term_list
+      `alt` term_record
+      `alt` term_abstraction
+      `alt` term_let
+      `alt` term_let_rec
+      `alt` term_hole
+      `alt` term_identifier
+      `alt` term_constructor
+    )
+  let term_key = term_key ()
 
   (* Left-recursive parsers are hard >< *)
   (* The basic idea here is we're isolating each left-recursive parser
@@ -238,47 +197,49 @@ let syntax () =
    * -precedence parsers *)
   (* Incidentally, these are all function application of some kind. Go figure. *)
 
-  let partial_argument t = (t `act` Some) `alt` (keysym "_" `cap` None)
+  let term () =
+    let partial_argument t = (t `act` Some) `alt` (keysym "_" `cap` None)
 
-  let application =
-    (* cursed idea: _(arg) meta-partial function application *)
-    let left = term_key
-    let paren_app = keysym "(" `seq` comma_sep (partial_argument term_ref) `seq` keysym ")"
-    let paren_rep = collect_list (paren_app `rep` 0)
-    let application_ops = collect_tuple (left `seq` paren_rep)
-    let fold (l, ps) = foldl (fun l p -> application_fix (l, p)) l ps
-    in application_ops `act` fold
+    let application =
+      (* cursed idea: _(arg) meta-partial function application *)
+      let left = term_key
+      let paren_app = keysym "(" `seq` comma_sep (partial_argument term_ref) `seq` keysym ")"
+      let paren_rep = collect_list (paren_app `rep` 0)
+      let application_ops = collect_tuple (left `seq` paren_rep)
+      let fold (l, ps) = foldl (fun l p -> term_application_fix (l, p)) l ps
+      in application_ops `act` fold
 
-  let suffix_op_application =
-    let left = partial_argument application
-    (* hacky workaround to make sure suffix ops don't eat infix ops *)
-    (* TODO: possibly causes a lot of backtracking, test this! *)
-    let suffix1 = suffix_op `seq` neg term_ref `act` (fun x -> (x, []))
-    let suffix2 = suffix_complex_op (partial_argument term_ref)
-    let suffix = suffix1 `alt` suffix2
-    let suffix_rep = collect_list (suffix `rep` 0)
-    let suffix_ops = collect_tuple (left `seq` suffix_rep)
-    let fold (l, ops) = foldl (fun l (op, args) -> Some (application_fix (op, l::args))) l ops
-    in suffix_ops `actx` fold
+    let suffix_app =
+      let left = partial_argument application
+      (* hacky workaround to make sure suffix ops don't eat infix ops *)
+      (* TODO: possibly causes a lot of backtracking, test this! *)
+      let suffix1 = suffix_op `seq` neg term_ref `act` (fun x -> (x, []))
+      let suffix2 = suffix_complex_op (partial_argument term_ref)
+      let suffix = suffix1 `alt` suffix2
+      let suffix_rep = collect_list (suffix `rep` 0)
+      let suffix_ops = collect_tuple (left `seq` suffix_rep)
+      let fold (l, ops) = foldl (fun l (op, args) -> Some (term_application_fix (op, l::args))) l ops
+      in suffix_ops `actx` fold
 
-  (* prefix ops aren't left recursive, but putting
-   * them here is necessary for correct precedence *)
-  let prefix_op_application =
-    let right = partial_argument suffix_op_application
-    let prefix_rep = collect_list (prefix_op `rep` 0)
-    let prefix_ops = collect_tuple (prefix_rep `seq` right)
-    let fold (ops, r) = foldr (fun op r -> Some (application_fix (op, [r]))) r ops
-    in prefix_ops `actx` fold
+    (* prefix ops aren't left recursive, but putting
+     * them here is necessary for correct precedence *)
+    let prefix_app =
+      let right = partial_argument suffix_app
+      let prefix_rep = collect_list (prefix_op `rep` 0)
+      let prefix_ops = collect_tuple (prefix_rep `seq` right)
+      let fold (ops, r) = foldr (fun op r -> Some (term_application_fix (op, [r]))) r ops
+      in prefix_ops `actx` fold
 
-  let infix_op_application =
-    let left = partial_argument prefix_op_application
-    let right = collect_tuple (infix_op `seq` left)
-    let right_rep = collect_list (right `rep` 0)
-    let infix_ops = collect_tuple (left `seq` right_rep)
-    let fold (l, rs) = foldl (fun l (op, r) -> Some (application_fix (op, [l, r]))) l rs
-    in infix_ops `actx` fold
+    let infix_app =
+      let left = partial_argument prefix_app
+      let right = collect_tuple (infix_op `seq` left)
+      let right_rep = collect_list (right `rep` 0)
+      let infix_ops = collect_tuple (left `seq` right_rep)
+      let fold (l, rs) = foldl (fun l (op, r) -> Some (term_application_fix (op, [l, r]))) l rs
+      in infix_ops `actx` fold
 
-  let term = infix_op_application
+    in infix_app
+  let term = term ()
 
   in grammar { term = term } term_ref
 

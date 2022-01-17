@@ -32,102 +32,105 @@ let identifier_tests () = [
 
 let constructor_tests () = [
   ("Foo", Some (identifier_constructor_fix "Foo")),
-  ("Left(l)", Some (application_fix (identifier_constructor_fix "Left", [Some (identifier_basic_fix "l")]))),
-  ("Right(_)", Some (application_fix (identifier_constructor_fix "Right", [None]))),
-  ("Nil ()", Some (application_fix (identifier_constructor_fix "Nil", []))),
-  ("Cons (x, [y, z])", Some (application_fix (identifier_constructor_fix "Cons", [Some (identifier_basic_fix "x"), Some (list_cons_fix ([identifier_basic_fix "y", identifier_basic_fix "z"], None))])))
+  ("Left(l)", Some (term_application_fix (identifier_constructor_fix "Left", [Some (identifier_basic_fix "l")]))),
+  ("Right(_)", Some (term_application_fix (identifier_constructor_fix "Right", [None]))),
+  ("Nil ()", Some (term_application_fix (identifier_constructor_fix "Nil", []))),
+  ("Cons (x, [y, z])", Some (term_application_fix (identifier_constructor_fix "Cons", [Some (identifier_basic_fix "x"), Some (term_list_fix ([identifier_basic_fix "y", identifier_basic_fix "z"], None))])))
 ]
 
 let boolean_tests (): list (string * option pterm) = [
-  ("true", Some (literal_bool_fix true)),
-  ("false", Some (literal_bool_fix false))
+  ("true", Some (term_bool_fix true)),
+  ("false", Some (term_bool_fix false))
 ]
 
 let string_tests () = [
-  ("\"The quick brown fox jumps over the lazy dog.\"", Some (string_cons_fix ("The quick brown fox jumps over the lazy dog.", []))),
-  ("\"The quick $color fox $(act)s over the lazy dog.\"", Some (string_cons_fix ("The quick ", [(identifier_basic_fix "color", " fox "), (identifier_basic_fix "act", "s over the lazy dog.")]))),
-  ("\"The \\\"quick\\\" brown fox jump\\$ over the \\\\azy dog.\"", Some (string_cons_fix ("The \"quick\" brown fox jump$ over the \\azy dog.", []))),
-  ("''The quick\n\"$color\" fox\n$(act)s over\nthe lazy dog.''", Some (string_cons_fix ("The quick\n\"", [(identifier_basic_fix "color", "\" fox\n"), (identifier_basic_fix "act", "s over\nthe lazy dog.")]))),
-  ("'''The \"quick\" brown fox jump$ over the \\azy dog.'''", Some (string_cons_fix ("The \"quick\" brown fox jump$ over the \\azy dog.", []))),
+  ("\"The quick brown fox jumps over the lazy dog.\"", Some (term_string_fix ("The quick brown fox jumps over the lazy dog.", []))),
+  ("\"The quick $color fox $(act)s over the lazy dog.\"", Some (term_string_fix ("The quick ", [(identifier_basic_fix "color", " fox "), (identifier_basic_fix "act", "s over the lazy dog.")]))),
+  ("\"The \\\"quick\\\" brown fox jump\\$ over the \\\\azy dog.\"", Some (term_string_fix ("The \"quick\" brown fox jump$ over the \\azy dog.", []))),
+  ("''The quick\n\"$color\" fox\n$(act)s over\nthe lazy dog.''", Some (term_string_fix ("The quick\n\"", [(identifier_basic_fix "color", "\" fox\n"), (identifier_basic_fix "act", "s over\nthe lazy dog.")]))),
+  ("'''The \"quick\" brown fox jump$ over the \\azy dog.'''", Some (term_string_fix ("The \"quick\" brown fox jump$ over the \\azy dog.", []))),
 
   ("\"\nope\"", None)
 ]
 
 let list_tests () = [
-  ("[a,b,c]", Some (list_cons_fix ([identifier_basic_fix "a", identifier_basic_fix "b", identifier_basic_fix "c"], None))),
-  ("[ a, b, c ]", Some (list_cons_fix ([identifier_basic_fix "a", identifier_basic_fix "b", identifier_basic_fix "c"], None))),
-  ("[ a, b, ...tail ]", Some (list_cons_fix ([identifier_basic_fix "a", identifier_basic_fix "b"], Some (identifier_basic_fix "tail")))),
+  ("[a,b,c]", Some (term_list_fix ([identifier_basic_fix "a", identifier_basic_fix "b", identifier_basic_fix "c"], None))),
+  ("[ a, b, c ]", Some (term_list_fix ([identifier_basic_fix "a", identifier_basic_fix "b", identifier_basic_fix "c"], None))),
+  ("[ a, b, ...tail ]", Some (term_list_fix ([identifier_basic_fix "a", identifier_basic_fix "b"], Some (identifier_basic_fix "tail")))),
 
   ("[ ...tail ]", None)
 ]
 
 let record_tests () = [
-  ("{a=b,c=d,e=f}", Some (record_cons_fix [(identifier_basic_fix "a", identifier_basic_fix "b"), (identifier_basic_fix "c", identifier_basic_fix "d"), (identifier_basic_fix "e", identifier_basic_fix "f")])),
-  ("{ a=b, c = d, e= f }", Some (record_cons_fix [(identifier_basic_fix "a", identifier_basic_fix "b"), (identifier_basic_fix "c", identifier_basic_fix "d"), (identifier_basic_fix "e", identifier_basic_fix "f")])),
+  ("{a=b,c=d,e=f}", Some (term_record_fix [(identifier_basic_fix "a", identifier_basic_fix "b"), (identifier_basic_fix "c", identifier_basic_fix "d"), (identifier_basic_fix "e", identifier_basic_fix "f")])),
+  ("{ a=b, c = d, e= f }", Some (term_record_fix [(identifier_basic_fix "a", identifier_basic_fix "b"), (identifier_basic_fix "c", identifier_basic_fix "d"), (identifier_basic_fix "e", identifier_basic_fix "f")])),
 
-  ("{ foo(a, b, c) = bar, \"ponies\" = \"cute\", (flopnax) = ropjar }", Some (record_cons_fix [(identifier_basic_fix "foo", abstraction_fix (["a", "b", "c"], identifier_basic_fix "bar")), (string_cons_fix ("ponies", []), string_cons_fix ("cute", [])), (identifier_basic_fix "flopnax", identifier_basic_fix "ropjar")])),
-  ("{ a + b = c, #x = x ^ x, l.(i) = i }", Some (record_cons_fix [(identifier_infix_fix "+", abstraction_fix (["a", "b"], identifier_basic_fix "c")), (identifier_prefix_fix "#", abstraction_fix (["x"], application_fix (identifier_infix_fix "^", [Some (identifier_basic_fix "x"), Some (identifier_basic_fix "x")]))), (identifier_suffix_complex_fix (".(", [")"]), abstraction_fix (["l", "i"], identifier_basic_fix "i"))]))
+  ("{ foo(a, b, c) = bar, \"ponies\" = \"cute\", (flopnax) = ropjar }", Some (term_record_fix [(identifier_basic_fix "foo", term_abstraction_fix ([pattern_binding_basic_fix "a", pattern_binding_basic_fix "b", pattern_binding_basic_fix "c"], identifier_basic_fix "bar")), (term_string_fix ("ponies", []), term_string_fix ("cute", [])), (identifier_basic_fix "flopnax", identifier_basic_fix "ropjar")])),
+  ("{ a + b = c, #x = x ^ x, l.(i) = i }", Some (term_record_fix [(identifier_infix_fix "+", term_abstraction_fix ([pattern_binding_basic_fix "a", pattern_binding_basic_fix "b"], identifier_basic_fix "c")), (identifier_prefix_fix "#", term_abstraction_fix ([pattern_binding_basic_fix "x"], term_application_fix (identifier_infix_fix "^", [Some (identifier_basic_fix "x"), Some (identifier_basic_fix "x")]))), (identifier_suffix_complex_fix (".(", [")"]), term_abstraction_fix ([pattern_binding_basic_fix "l", pattern_binding_basic_fix "i"], identifier_basic_fix "i"))]))
 ]
 
 let application_tests () = [
-  ("foo()", Some (application_fix (identifier_basic_fix "foo", []))),
-  ("foo(a, b, c)", Some (application_fix (identifier_basic_fix "foo", [Some (identifier_basic_fix "a"), Some (identifier_basic_fix "b"), Some (identifier_basic_fix "c")]))),
-  ("foo (a,b,c)", Some (application_fix (identifier_basic_fix "foo", [Some (identifier_basic_fix "a"), Some (identifier_basic_fix "b"), Some (identifier_basic_fix "c")]))),
-  ("foo(a, _, c)", Some (application_fix (identifier_basic_fix "foo", [Some (identifier_basic_fix "a"), None, Some (identifier_basic_fix "c")]))),
-  ("foo(a)(_)(c)", Some (application_fix ((application_fix ((application_fix (identifier_basic_fix "foo", [Some (identifier_basic_fix "a")])), [None])), [Some (identifier_basic_fix "c")])))
+  ("foo()", Some (term_application_fix (identifier_basic_fix "foo", []))),
+  ("foo(a, b, c)", Some (term_application_fix (identifier_basic_fix "foo", [Some (identifier_basic_fix "a"), Some (identifier_basic_fix "b"), Some (identifier_basic_fix "c")]))),
+  ("foo (a,b,c)", Some (term_application_fix (identifier_basic_fix "foo", [Some (identifier_basic_fix "a"), Some (identifier_basic_fix "b"), Some (identifier_basic_fix "c")]))),
+  ("foo(a, _, c)", Some (term_application_fix (identifier_basic_fix "foo", [Some (identifier_basic_fix "a"), None, Some (identifier_basic_fix "c")]))),
+  ("foo(a)(_)(c)", Some (term_application_fix ((term_application_fix ((term_application_fix (identifier_basic_fix "foo", [Some (identifier_basic_fix "a")])), [None])), [Some (identifier_basic_fix "c")])))
 ]
 
 let infix_op_tests () = [
-  ("foo + bar", Some (application_fix (identifier_infix_fix "+", [Some (identifier_basic_fix "foo"), Some (identifier_basic_fix "bar")]))),
-  ("one-to-one", Some (application_fix (identifier_infix_fix "-", [Some (application_fix (identifier_infix_fix "-", [Some (identifier_basic_fix "one"), Some (identifier_basic_fix "to")])), Some (identifier_basic_fix "one")]))),
-  ("_ ^ \"n't\"", Some (application_fix (identifier_infix_fix "^", [None, Some (string_cons_fix ("n't", []))]))),
-  ("+a+b+c+", Some (application_fix (identifier_infix_fix "+", [Some (application_fix (identifier_infix_fix "+", [Some (application_fix (identifier_prefix_fix "+", [Some (identifier_basic_fix "a")])), Some (identifier_basic_fix "b")])), Some (application_fix (identifier_suffix_fix "+", [Some (identifier_basic_fix "c")]))])))
+  ("foo + bar", Some (term_application_fix (identifier_infix_fix "+", [Some (identifier_basic_fix "foo"), Some (identifier_basic_fix "bar")]))),
+  ("one-to-one", Some (term_application_fix (identifier_infix_fix "-", [Some (term_application_fix (identifier_infix_fix "-", [Some (identifier_basic_fix "one"), Some (identifier_basic_fix "to")])), Some (identifier_basic_fix "one")]))),
+  ("_ ^ \"n't\"", Some (term_application_fix (identifier_infix_fix "^", [None, Some (term_string_fix ("n't", []))]))),
+  ("+a+b+c+", Some (term_application_fix (identifier_infix_fix "+", [Some (term_application_fix (identifier_infix_fix "+", [Some (term_application_fix (identifier_prefix_fix "+", [Some (identifier_basic_fix "a")])), Some (identifier_basic_fix "b")])), Some (term_application_fix (identifier_suffix_fix "+", [Some (identifier_basic_fix "c")]))])))
 ]
 
 let prefix_op_tests () = [
-  ("#hashtag", Some (application_fix (identifier_prefix_fix "#", [Some (identifier_basic_fix "hashtag")]))),
-  ("-#foo", Some (application_fix (identifier_prefix_fix "-#", [Some (identifier_basic_fix "foo")]))),
-  ("-(#bar)", Some (application_fix (identifier_prefix_fix "-", [Some (application_fix (identifier_prefix_fix "#", [Some (identifier_basic_fix "bar")]))]))),
-  ("- #bar", Some (application_fix (identifier_prefix_fix "-", [Some (application_fix (identifier_prefix_fix "#", [Some (identifier_basic_fix "bar")]))]))),
-  ("-_", Some (application_fix (identifier_prefix_fix "-", [None]))),
-  ("-+- sparkle -+-", Some (application_fix (identifier_prefix_fix "-+-", [Some (application_fix (identifier_suffix_fix "-+-", [Some (identifier_basic_fix "sparkle")]))])))
+  ("#hashtag", Some (term_application_fix (identifier_prefix_fix "#", [Some (identifier_basic_fix "hashtag")]))),
+  ("-#foo", Some (term_application_fix (identifier_prefix_fix "-#", [Some (identifier_basic_fix "foo")]))),
+  ("-(#bar)", Some (term_application_fix (identifier_prefix_fix "-", [Some (term_application_fix (identifier_prefix_fix "#", [Some (identifier_basic_fix "bar")]))]))),
+  ("- #bar", Some (term_application_fix (identifier_prefix_fix "-", [Some (term_application_fix (identifier_prefix_fix "#", [Some (identifier_basic_fix "bar")]))]))),
+  ("-_", Some (term_application_fix (identifier_prefix_fix "-", [None]))),
+  ("-+- sparkle -+-", Some (term_application_fix (identifier_prefix_fix "-+-", [Some (term_application_fix (identifier_suffix_fix "-+-", [Some (identifier_basic_fix "sparkle")]))])))
 ]
 
 let suffix_op_tests () = [
-  ("c++", Some (application_fix (identifier_suffix_fix "++", [Some (identifier_basic_fix "c")]))),
-  ("_ - +", Some (application_fix (identifier_suffix_fix "+", [Some (application_fix (identifier_suffix_fix "-", [None]))]))),
-  ("click.click.click", Some (application_fix (identifier_suffix_complex_fix (".click", []), [Some (application_fix (identifier_suffix_complex_fix (".click", []), [Some (identifier_basic_fix "click")]))]))),
-  ("idk.about++.this++.chief", Some (application_fix (identifier_suffix_complex_fix (".chief", []), [Some (application_fix (identifier_suffix_fix "++", [Some (application_fix (identifier_suffix_complex_fix (".this", []), [Some (application_fix (identifier_suffix_fix "++", [Some (application_fix (identifier_suffix_complex_fix (".about", []), [Some (identifier_basic_fix "idk")]))]))]))]))]))),
-  ("over.(engineer)", Some (application_fix (identifier_suffix_complex_fix (".(", [")"]), [Some (identifier_basic_fix "over"), Some (identifier_basic_fix "engineer")]))),
-  ("_.(_)", Some (application_fix (identifier_suffix_complex_fix (".(", [")"]), [None, None])))
+  ("c++", Some (term_application_fix (identifier_suffix_fix "++", [Some (identifier_basic_fix "c")]))),
+  ("_ - +", Some (term_application_fix (identifier_suffix_fix "+", [Some (term_application_fix (identifier_suffix_fix "-", [None]))]))),
+  ("click.click.click", Some (term_application_fix (identifier_suffix_complex_fix (".click", []), [Some (term_application_fix (identifier_suffix_complex_fix (".click", []), [Some (identifier_basic_fix "click")]))]))),
+  ("idk.about++.this++.chief", Some (term_application_fix (identifier_suffix_complex_fix (".chief", []), [Some (term_application_fix (identifier_suffix_fix "++", [Some (term_application_fix (identifier_suffix_complex_fix (".this", []), [Some (term_application_fix (identifier_suffix_fix "++", [Some (term_application_fix (identifier_suffix_complex_fix (".about", []), [Some (identifier_basic_fix "idk")]))]))]))]))]))),
+  ("over.(engineer)", Some (term_application_fix (identifier_suffix_complex_fix (".(", [")"]), [Some (identifier_basic_fix "over"), Some (identifier_basic_fix "engineer")]))),
+  ("_.(_)", Some (term_application_fix (identifier_suffix_complex_fix (".(", [")"]), [None, None])))
 ]
 
 let abstraction_tests () = [
-  ("fun(a, b, c) = body", Some (abstraction_fix (["a", "b", "c"], identifier_basic_fix "body"))),
-  ("fun (a ,b, c )=body", Some (abstraction_fix (["a", "b", "c"], identifier_basic_fix "body")))
+  ("fun(a, b, c) = body", Some (term_abstraction_fix ([pattern_binding_basic_fix "a", pattern_binding_basic_fix "b", pattern_binding_basic_fix "c"], identifier_basic_fix "body"))),
+  ("fun (a ,b, c )=body", Some (term_abstraction_fix ([pattern_binding_basic_fix "a", pattern_binding_basic_fix "b", pattern_binding_basic_fix "c"], identifier_basic_fix "body")))
 ]
 
 let let_expression_tests () = [
-  ("let name=expr in body", Some (let_binding_fix (IdentifierBasic "name", identifier_basic_fix "expr", identifier_basic_fix "body"))),
-  ("let name = expr in body", Some (let_binding_fix (IdentifierBasic "name", identifier_basic_fix "expr", identifier_basic_fix "body"))),
-  ("let foo(a, b, c) = foocode in body", Some (let_binding_fix (IdentifierBasic "foo", abstraction_fix (["a", "b", "c"], identifier_basic_fix "foocode"), identifier_basic_fix "body"))),
-  ("let a + b = c in a + b", Some (let_binding_fix (IdentifierInfix "+", abstraction_fix (["a", "b"], identifier_basic_fix "c"), application_fix (identifier_infix_fix "+", [Some (identifier_basic_fix "a"), Some (identifier_basic_fix "b")])))),
-  ("let fundament.software = qts in space", Some (let_binding_fix (IdentifierSuffixComplex (".software", []), abstraction_fix (["fundament"], identifier_basic_fix "qts"), identifier_basic_fix "space"))),
+  ("let name=expr in body", Some (term_let_fix (pattern_binding_basic_fix "name", identifier_basic_fix "expr", identifier_basic_fix "body"))),
+  ("let name = expr in body", Some (term_let_fix (pattern_binding_basic_fix "name", identifier_basic_fix "expr", identifier_basic_fix "body"))),
+  ("let foo(a, b, c) = foocode in body", Some (term_let_fix (pattern_binding_basic_fix "foo", term_abstraction_fix ([pattern_binding_basic_fix "a", pattern_binding_basic_fix "b", pattern_binding_basic_fix "c"], identifier_basic_fix "foocode"), identifier_basic_fix "body"))),
+  ("let a + b = c in a + b", Some (term_let_fix (pattern_binding_infix_fix "+", term_abstraction_fix ([pattern_binding_basic_fix "a", pattern_binding_basic_fix "b"], identifier_basic_fix "c"), term_application_fix (identifier_infix_fix "+", [Some (identifier_basic_fix "a"), Some (identifier_basic_fix "b")])))),
+  ("let fundament.software = qts in space", Some (term_let_fix (pattern_binding_suffix_complex_fix (".software", []), term_abstraction_fix ([pattern_binding_basic_fix "fundament"], identifier_basic_fix "qts"), identifier_basic_fix "space"))),
+  ("let x=f()in[x]", Some (term_let_fix (pattern_binding_basic_fix "x", term_application_fix (identifier_basic_fix "f", []), term_list_fix ([identifier_basic_fix "x"], None)))),
+  ("let pa=ic in the-disco", Some (term_let_fix (pattern_binding_basic_fix "pa", identifier_basic_fix "ic", term_application_fix (identifier_infix_fix "-", [Some (identifier_basic_fix "the"), Some (identifier_basic_fix "disco")])))),
 
   ("letname = expr in body", None),
-  ("let name = expr inbody", None)
+  ("let name = expr inbody", None),
+  ("let Pa=ic in the-disco", None)
 ]
 
 let let_rec_expression_tests () = [
-  ("let rec name = expr in body", Some (let_rec_binding_fix (IdentifierBasic "name", identifier_basic_fix "expr", identifier_basic_fix "body"))),
-  ("let rec #x = #x+a in #y", Some (let_rec_binding_fix (IdentifierPrefix "#", abstraction_fix (["x"], application_fix (identifier_infix_fix "+", [Some (application_fix (identifier_prefix_fix "#", [Some (identifier_basic_fix "x")])), Some (identifier_basic_fix "a")])), application_fix (identifier_prefix_fix "#", [Some (identifier_basic_fix "y")])))),
+  ("let rec name = expr in body", Some (term_let_rec_fix (pattern_binding_basic_fix "name", identifier_basic_fix "expr", identifier_basic_fix "body"))),
+  ("let rec #x = #x+a in #y", Some (term_let_rec_fix (pattern_binding_prefix_fix "#", term_abstraction_fix ([pattern_binding_basic_fix "x"], term_application_fix (identifier_infix_fix "+", [Some (term_application_fix (identifier_prefix_fix "#", [Some (identifier_basic_fix "x")])), Some (identifier_basic_fix "a")])), term_application_fix (identifier_prefix_fix "#", [Some (identifier_basic_fix "y")])))),
 
   ("letrec name = expr in body", None)
 ]
 
 let hole_tests () = [
-  ("$?help", Some (hole_fix (Some "help"))),
-  ("$?", Some (hole_fix None))
+  ("$?help", Some (term_hole_fix (Some (IdentifierBasic "help")))),
+  ("$?", Some (term_hole_fix None))
 ]
 
 let misc_tests () = [
