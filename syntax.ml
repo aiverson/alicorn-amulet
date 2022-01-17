@@ -70,6 +70,7 @@ let record_sequence elem = keysym "{" `seq` comma_sep elem `seq` keysym "}"
 let syntax () =
 
   let pattern_ref: parser1 ppat = v "pattern"
+  let pattern_paren = keysym "(" `seq` pattern_ref `seq` keysym ")"
 
   let pattern () =
     let pattern_blank = keysym "_" `cap` pattern_blank_fix
@@ -91,7 +92,8 @@ let syntax () =
       in record_sequence binding `act` pattern_record_fix
 
     in (
-            pattern_blank
+            pattern_paren
+      `alt` pattern_blank
       `alt` pattern_binding
       `alt` pattern_constructor
       `alt` pattern_list

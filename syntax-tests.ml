@@ -104,7 +104,8 @@ let suffix_op_tests () = [
 
 let abstraction_tests () = [
   ("fun(a, b, c) = body", Some (term_abstraction_fix ([pattern_binding_basic_fix "a", pattern_binding_basic_fix "b", pattern_binding_basic_fix "c"], identifier_basic_fix "body"))),
-  ("fun (a ,b, c )=body", Some (term_abstraction_fix ([pattern_binding_basic_fix "a", pattern_binding_basic_fix "b", pattern_binding_basic_fix "c"], identifier_basic_fix "body")))
+  ("fun (a ,b, c )=body", Some (term_abstraction_fix ([pattern_binding_basic_fix "a", pattern_binding_basic_fix "b", pattern_binding_basic_fix "c"], identifier_basic_fix "body"))),
+  ("fun ([a, b, ...c], oh) = ok", Some (term_abstraction_fix ([pattern_list_fix ([pattern_binding_basic_fix "a", pattern_binding_basic_fix "b"], Some (pattern_binding_basic_fix "c")), pattern_binding_basic_fix "oh"], identifier_basic_fix "ok")))
 ]
 
 let let_expression_tests () = [
@@ -115,10 +116,12 @@ let let_expression_tests () = [
   ("let fundament.software = qts in space", Some (term_let_fix (pattern_binding_suffix_complex_fix (".software", []), term_abstraction_fix ([pattern_binding_basic_fix "fundament"], identifier_basic_fix "qts"), identifier_basic_fix "space"))),
   ("let x=f()in[x]", Some (term_let_fix (pattern_binding_basic_fix "x", term_application_fix (identifier_basic_fix "f", []), term_list_fix ([identifier_basic_fix "x"], None)))),
   ("let pa=ic in the-disco", Some (term_let_fix (pattern_binding_basic_fix "pa", identifier_basic_fix "ic", term_application_fix (identifier_infix_fix "-", [Some (identifier_basic_fix "the"), Some (identifier_basic_fix "disco")])))),
+  ("let Pa=ic in the-disco", Some (term_let_fix (pattern_binding_constructor_fix "Pa", identifier_basic_fix "ic", term_application_fix (identifier_infix_fix "-", [Some (identifier_basic_fix "the"), Some (identifier_basic_fix "disco")])))),
+  ("let { left = myl, right = myr } = get_left_right() in myl + myr", Some (term_let_fix (pattern_record_fix [( IdentifierBasic "left", pattern_binding_basic_fix "myl"), ( IdentifierBasic "right", pattern_binding_basic_fix "myr")], term_application_fix (identifier_basic_fix "get_left_right", []), term_application_fix (identifier_infix_fix "+", [Some (identifier_basic_fix "myl"), Some (identifier_basic_fix "myr")])))),
+  ("let [[oh, woe], [is, my]] = sanity in amulet", Some (term_let_fix (pattern_list_fix ([pattern_list_fix ([pattern_binding_basic_fix "oh", pattern_binding_basic_fix "woe"], None), pattern_list_fix ([pattern_binding_basic_fix "is", pattern_binding_basic_fix "my"], None)], None), identifier_basic_fix "sanity", identifier_basic_fix "amulet"))),
 
   ("letname = expr in body", None),
-  ("let name = expr inbody", None),
-  ("let Pa=ic in the-disco", None)
+  ("let name = expr inbody", None)
 ]
 
 let let_rec_expression_tests () = [
