@@ -119,6 +119,7 @@ let let_tests () = [
   ("let { left = myl, right = myr } = get_left_right() in myl + myr", Some (term_let_fix (pat_record_fix [( IdentifierBasic "left", pat_bind_basic_fix "myl"), ( IdentifierBasic "right", pat_bind_basic_fix "myr")], term_app_fix (id_basic_fix "get_left_right", []), term_app_fix (id_infix_fix "+", [Some (id_basic_fix "myl"), Some (id_basic_fix "myr")])))),
   ("let [[oh, woe], [is, my]] = sanity in amulet", Some (term_let_fix (pat_list_fix ([pat_list_fix ([pat_bind_basic_fix "oh", pat_bind_basic_fix "woe"], None), pat_list_fix ([pat_bind_basic_fix "is", pat_bind_basic_fix "my"], None)], None), id_basic_fix "sanity", id_basic_fix "amulet"))),
   ("let [...what] = is in there", Some (term_let_fix (pat_list_fix ([], Some (pat_bind_basic_fix "what")), id_basic_fix "is", id_basic_fix "there"))),
+  ("let _ - _ = - _ in - _ -", Some (term_let_fix (pat_bind_infix_fix "-", term_abs_fix ([pat_blank_fix, pat_blank_fix], term_app_fix (id_prefix_fix "-", [None])), term_app_fix (id_prefix_fix "-", [Some (term_app_fix (id_suffix_fix "-", [None]))])))),
 
   ("letname = expr in body", None),
   ("let name = expr inbody", None)
