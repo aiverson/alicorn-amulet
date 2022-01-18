@@ -58,9 +58,9 @@ let suffix_complex_op x = id_suffix_complex x `act` fixsuffix id_suffix_complex_
 let list_sequence (elem: parser (parservals 'a emptyparservals)) =
   let list_elements = comma_sep elem
   let list_tail = keysym "..." `seq` elem
-  let list_alt_et = collect_tuple (list_elements `seq` opt (keysym "," `seq` list_tail))
   let list_alt_t = list_tail `act` (fun t -> ([], Some t))
-  let list_body = list_alt_et `alt` list_alt_t
+  let list_alt_et = collect_tuple (list_elements `seq` opt (keysym "," `seq` list_tail))
+  let list_body = list_alt_t `alt` list_alt_et
   in keysym "[" `seq` list_body `seq` keysym "]"
 
 let record_sequence elem = keysym "{" `seq` comma_sep elem `seq` keysym "}"
