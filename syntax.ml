@@ -39,9 +39,7 @@ let id_suffix_complex (x: parser (parservals 'a emptyparservals)) =
   let variant2 = collect_tuple (c (p ".(") `seq` wsq `seq` collect_list (collect_tuple (x `seq` c (p ")"))))
   in variant1 `alt` variant2 `seq` wsq
 
-(* TODO: bools are just type bool = True | False *)
-(* this means conditionals are just pattern matches on bool *)
-(* (not strictly true, Open has Ideas) *)
+(* TODO: bools aren't pattern matched rn. should they be? *)
 let parse_bool = function | "true" -> Some true | "false" -> Some false | _ -> None
 let term_bool: parser1 pterm = id_basic `actx` parse_bool `act` term_bool_fix
 let term_id_shy: parser1 pterm = id_basic_shy `act` id_basic_fix
@@ -51,6 +49,8 @@ let infix_op: parser1 pterm = id_infix `act` id_infix_fix
 let prefix_op: parser1 pterm = id_prefix `act` id_prefix_fix
 let suffix_op: parser1 pterm = id_suffix `act` id_suffix_fix
 (* https://www.youtube.com/watch?v=T-BoDW1_9P4&t=11m3s *)
+(* ^ this is kindof a mood throughout *)
+(* specifically: complex suffix ops, pattern matching *)
 let unzip xs = foldr (fun (l, r) (ls, rs) -> (l::ls, r::rs)) ([], []) xs
 let fixsuffix f (h, rs) = let (args, parts) = unzip rs in (f (h, parts), args)
 let suffix_complex_op x = id_suffix_complex x `act` fixsuffix id_suffix_complex_fix
@@ -69,6 +69,7 @@ let record_sequence elem = keysym "{" `seq` comma_sep elem `seq` keysym "}"
 (* TODO: move this even higher and figure out the type errors *)
 let syntax () =
 
+  (* TODO: pattern matching seems to slow the parser way down. find out why and fix! *)
   let pat_ref: parser1 ppat = v "pat"
   let pat_paren = keysym "(" `seq` pat_ref `seq` keysym ")"
 
@@ -203,6 +204,17 @@ let syntax () =
     let term_let = keyword "let" `seq` let_body `act` term_let_fix
     let term_let_rec = keyword "let" `seq` keyword "rec" `seq` let_body `act` term_let_rec_fix
 
+    let term_cond =
+      let head = keyword "if" `seq` term_ref
+      let body = keyword "then" `seq` term_ref
+      let tail = keyword "else" `seq` term_ref
+      in collect_tuple (head `seq` body `seq` tail) `act` term_cond_fix
+
+    let term_match =
+      let head = keyword "match" `seq` term_ref `seq` keyword "with"
+      let body = collect_list (keysym "|" `seq` define_sequence `rep` 1)
+      in collect_tuple (head `seq` body) `act` term_match_fix
+
     let term_hole = p "$?" `seq` opt (id_basic `act` IdentifierBasic) `act` term_hole_fix
 
     in (
@@ -214,6 +226,8 @@ let syntax () =
       `alt` term_abs
       `alt` term_let
       `alt` term_let_rec
+      `alt` term_cond
+      `alt` term_match
       `alt` term_hole
       `alt` term_id
       `alt` term_cons

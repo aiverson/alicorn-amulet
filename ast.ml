@@ -41,6 +41,7 @@ type term 'id 'pat 'term =
 | TermLetRec of 'pat * 'term * 'term
 (* | AsBinding of 'term * 'id * 'typ *)
 | TermConditional of 'term * 'term * 'term
+| TermMatch of 'term * list ('pat * 'term)
 | TermHole of option 'id
 
 instance functor (term 'id 'pat)
@@ -56,6 +57,7 @@ instance functor (term 'id 'pat)
   | TermLet (v, t, r) -> TermLet (v, f t, f r)
   | TermLetRec (v, t, r) -> TermLetRec (v, f t, f r)
   | TermConditional (c, i, e) -> TermConditional (f c, f i, f e)
+  | TermMatch (v, bs) -> TermMatch (f v, (second f) <$> bs)
   | TermHole i -> TermHole i
 
 open import "prelude.ml"
@@ -111,6 +113,7 @@ let showterm = cata (function
   | TermLet (pat, def, body) -> "let " ^ showpat pat ^ " = " ^ def ^ " in " ^ body
   | TermLetRec (pat, def, body) -> "let rec " ^ showpat pat ^ " = " ^ def ^ " in " ^ body
   | TermConditional (cond, cons, alt) -> "if " ^ cond ^ " then " ^ cons ^ " else " ^ alt
+  | TermMatch (v, bs) -> "match " ^ v ^ " with " ^ foldl (fun a (pat, t) -> a ^ "| " ^ showpat pat ^ " = " ^ t) "" bs
   | TermHole None -> "$?"
   | TermHole (Some id) -> "$?" ^ showid id
 )
@@ -143,4 +146,5 @@ let term_abs_fix x = Fix (TermAbstraction x)
 let term_let_fix x = Fix (TermLet x)
 let term_let_rec_fix x = Fix (TermLetRec x)
 let term_cond_fix x = Fix (TermConditional x)
+let term_match_fix x = Fix (TermMatch x)
 let term_hole_fix x = Fix (TermHole x)

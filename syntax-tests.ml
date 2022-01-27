@@ -132,6 +132,14 @@ let let_rec_tests () = [
   ("letrec name = expr in body", None)
 ]
 
+let cond_tests () = [
+  ("if true then false else true", Some (term_cond_fix (term_bool_fix true, term_bool_fix false, term_bool_fix true)))
+]
+
+let match_tests () = [
+  ("match xs with | [a, ...tl] = a | _ = false", Some (term_match_fix (id_basic_fix "xs", [(pat_list_fix ([pat_bind_basic_fix "a"], Some (pat_bind_basic_fix "tl")), id_basic_fix "a"), (pat_blank_fix, term_bool_fix false)])))
+]
+
 let hole_tests () = [
   ("$?help", Some (term_hole_fix (Some (IdentifierBasic "help")))),
   ("$?", Some (term_hole_fix None))
@@ -187,5 +195,7 @@ let _ = run_tests (syntax, suffix_app_tests ())
 let _ = run_tests (syntax, abs_tests ())
 let _ = run_tests (syntax, let_tests ())
 let _ = run_tests (syntax, let_rec_tests ())
+let _ = run_tests (syntax, cond_tests ())
+let _ = run_tests (syntax, match_tests ())
 let _ = run_tests (syntax, hole_tests ())
 let _ = run_tests (syntax, misc_tests ())
